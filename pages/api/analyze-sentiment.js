@@ -76,15 +76,6 @@ Content: ${JSON.stringify(content.substring(0, 4000))}`
     res.status(200).json(analysis)
   } catch (error) {
     console.error('Sentiment analysis error:', error.message)
-    if (error.response) {
-      console.error('OpenRouter Error Status:', error.response.status);
-      console.error('OpenRouter Error Data:', error.response.data);
-      console.error('OpenRouter Error Headers:', error.response.headers);
-    } else if (error.request) {
-      console.error('OpenRouter No response received:', error.request);
-    } else {
-      console.error('OpenRouter Error', error.message);
-    }
     res.status(500).json({ 
       error: `Sentiment analysis failed: ${error.message}` 
     })
