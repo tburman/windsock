@@ -2,8 +2,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Windsock',
-  description: 'Analyze sentiment across multiple URLs to see which way the wind is blowing.',
+  title: 'Login',
+  description: 'Login to access the dashboard',
 }
 
 export default function RootLayout({ children }) {
