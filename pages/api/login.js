@@ -9,7 +9,10 @@ export default async function login(req, res) {
   const { username, password } = req.body;
 
   // In a real app, validate credentials against a database
-  if (username === 'user' && password === 'password') {
+  const storedUsername = process.env.LOGIN_USERNAME; 
+  const storedPassword = process.env.LOGIN_PASSWORD; 
+
+  if (username === storedUsername && password === storedPassword) {
     // Set a simple token in a cookie
     const token = 'my-secret-token'; // Replace with a real JWT or session token
     const cookie = serialize('auth_token', token, {

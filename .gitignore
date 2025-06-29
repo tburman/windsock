@@ -1,2 +1,4 @@
 node_modules
 .env.local
+bfg-1.15.0.jar
+.git.bfg-report/
