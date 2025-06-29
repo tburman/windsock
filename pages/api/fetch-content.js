@@ -15,6 +15,7 @@ async function fetchWithRetry(url, maxRetries = 3) {
     try {
       const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
       
+      console.log(`Attempting to fetch: ${url} with User-Agent: ${userAgent}`)
       const response = await axios.get(url, {
         headers: {
           'User-Agent': userAgent,
@@ -32,6 +33,15 @@ async function fetchWithRetry(url, maxRetries = 3) {
       return response.data
     } catch (error) {
       console.log(`Attempt ${i + 1} failed for ${url}:`, error.message)
+      if (error.response) {
+        console.log(`Status: ${error.response.status}`)
+        console.log(`Headers: ${JSON.stringify(error.response.headers)}`)
+        console.log(`Data: ${JSON.stringify(error.response.data)}`)
+      } else if (error.request) {
+        console.log('No response received')
+      } else {
+        console.log('Error', error.message)
+      }
       if (i === maxRetries - 1) throw error
       await delay(1000 * (i + 1)) // Exponential backoff
     }
@@ -41,43 +51,70 @@ async function fetchWithRetry(url, maxRetries = 3) {
 function extractContent(html, url) {
   const $ = cheerio.load(html)
   
-  // Remove unwanted elements
-  $('script, style, nav, header, footer, aside, .advertisement, .ads, .social-share, .comments, .sidebar').remove()
+  // Remove unwanted elements and their content
+  $('script, style, nav, header, footer, aside, .advertisement, .ads, .social-share, .comments, .sidebar, form, noscript, iframe, svg, canvas, audio, video').remove()
   
-  // Try to find main content
+  // Try to find main content using a broader set of selectors
   let content = ''
   
-  // Common content selectors
   const contentSelectors = [
-    'article', '[role="main"]', 'main', '.content', '.post-content', 
-    '.entry-content', '.article-content', '.story-body', '.post-body'
+    'article', 'main', '[role="main"]', '.post', '.entry', '.story', // Semantic and common class names
+    '#content', '#main-content', '#article-content', // Common IDs
+    '.content-area', '.post-area', '.entry-content', '.article-body', // More class names
+    'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', // General text-containing elements
   ]
   
   for (const selector of contentSelectors) {
-    const element = $(selector).first()
-    if (element.length && element.text().trim().length > 200) {
-      content = element.text().trim()
-      break
-    }
+    $(selector).each((i, elem) => {
+      const text = $(elem).text().trim()
+      if (text.length > 100) { // Accumulate content if it's substantial
+        content += text + '\n\n' // Add newlines for readability between blocks
+      }
+    })
+    if (content.length > 500) break; // Stop if we have a good amount of content
   }
-  
-  // Fallback to body if no main content found
-  if (!content) {
+
+  // Fallback to body if still not enough content
+  if (content.length < 500) {
     content = $('body').text().trim()
   }
   
   // Clean up the content
   content = content
-    .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
-    .replace(/\n+/g, ' ') // Replace newlines with space
+    .replace(/\s\s+/g, ' ') // Replace multiple whitespace with single space
+    .replace(/\n\n+/g, '\n\n') // Replace multiple newlines with double newline
     .trim()
   
   // Limit content length
   if (content.length > 8000) {
     content = content.substring(0, 8000) + '...'
+  } else if (content.length < 200) { // Increase minimum content length for valid extraction
+    throw new Error('Insufficient content extracted after processing')
   }
   
   return content
+}
+
+function extractTitle(html) {
+  const $ = cheerio.load(html);
+  let title = $('title').text();
+
+  // Try to find a more specific article title if the <title> is generic
+  const titleSelectors = [
+    'h1.title', 'h1.article-title', 'h1.entry-title',
+    'h1[itemprop="headline"]',
+    'h1', // Fallback to any h1
+  ];
+
+  for (const selector of titleSelectors) {
+    const element = $(selector).first();
+    if (element.length && element.text().trim().length > 10) {
+      title = element.text().trim();
+      break;
+    }
+  }
+
+  return title.replace(/\s\s+/g, ' ').trim();
 }
 
 export default async function handler(req, res) {
@@ -96,6 +133,7 @@ export default async function handler(req, res) {
     
     const html = await fetchWithRetry(url)
     const content = extractContent(html, url)
+    const articleTitle = extractTitle(html)
     
     if (!content || content.length < 100) {
       throw new Error('Insufficient content extracted')
@@ -103,7 +141,7 @@ export default async function handler(req, res) {
     
     console.log(`Successfully extracted ${content.length} characters from ${url}`)
     
-    res.status(200).json({ content })
+    res.status(200).json({ content, articleTitle })
   } catch (error) {
     console.error(`Failed to fetch ${url}:`, error.message)
     res.status(500).json({ 

@@ -1,4 +1,6 @@
 // ===== app/layout.js =====
+import './globals.css'
+
 export const metadata = {
   title: 'Windsock',
   description: 'Analyze sentiment across multiple URLs to see which way the wind is blowing.',
