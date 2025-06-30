@@ -2,7 +2,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy } from 'lucide-react'
+import { useRouter } from 'next/router'
+import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy } from 'lucide-react'
 
 // Skeleton Loader Components
 const Skeleton = ({ className }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [error, setError] = useState('')
   const [openResult, setOpenResult] = useState(null)
   const [copiedMessage, setCopiedMessage] = useState('')
+  const router = useRouter()
 
   const isValidUrl = (string) => {
     try {
@@ -223,18 +225,32 @@ export default function Dashboard() {
     return results.map(result => formatIndividualResult(result)).join('\n\n')
   }
 
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' })
+    router.push('/')
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans text-gray-800">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <header className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 mb-8 sm:mb-10 border border-blue-100">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="bg-blue-600 p-3 rounded-full text-white shadow-lg">
-              <Wind className="w-8 h-8" />
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-600 p-3 rounded-full text-white shadow-lg">
+                <Wind className="w-8 h-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight">Windsock</h1>
+                <p className="text-gray-600 text-sm sm:text-base mt-1">See which way the wind is blowing for any URL.</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight">Windsock</h1>
-              <p className="text-gray-600 text-sm sm:text-base mt-1">See which way the wind is blowing for any URL.</p>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors duration-150 shadow-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
           </div>
           
           <div className="mb-6">
