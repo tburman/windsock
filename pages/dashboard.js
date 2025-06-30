@@ -32,28 +32,22 @@ export default function Dashboard() {
   const [copiedMessage, setCopiedMessage] = useState('')
   const router = useRouter()
 
-  const isValidUrl = (string) => {
-    try {
-      const url = new URL(string)
-      return url.protocol === 'http:' || url.protocol === 'https:'
-    } catch (_) {
-      return false
-    }
-  }
-
-  const parseUrls = (urlText) => urlText.split('\n').map(url => url.trim()).filter(url => url.length > 0)
+  const extractUrls = (text) => {
+    if (!text) return [];
+    // Regex to find URLs, avoiding trailing punctuation and ensuring it doesn't capture unwanted characters.
+    const urlRegex = /https?:\/\/[^\s"'<>`]+/g;
+    const matches = text.match(urlRegex) || [];
+    // Clean trailing punctuation from URLs and get unique URLs
+    const cleanedUrls = matches.map(url => url.replace(/[.,!?:;)]+$/, ''));
+    const uniqueUrls = [...new Set(cleanedUrls)];
+    return uniqueUrls;
+  };
 
   const processUrls = async () => {
-    const urlList = parseUrls(urls)
+    const urlList = extractUrls(urls);
     if (urlList.length === 0) {
-      setError('Please enter at least one URL.')
-      return
-    }
-
-    const invalidUrls = urlList.filter(url => !isValidUrl(url))
-    if (invalidUrls.length > 0) {
-      setError(`Invalid or unsupported URLs found (only http/https allowed):\n${invalidUrls.join('\n')}`)
-      return
+      setError('No valid URLs found in the provided text. Make sure URLs start with http:// or https://');
+      return;
     }
 
     setIsProcessing(true)
@@ -255,14 +249,14 @@ export default function Dashboard() {
           
           <div className="mb-6">
             <label htmlFor="url-input" className="block text-sm font-semibold text-gray-700 mb-2">
-              Enter URLs to analyze (one per line):
+              Paste text containing URLs to analyze:
             </label>
             <textarea
               id="url-input"
               value={urls}
               onChange={(e) => setUrls(e.target.value)}
               className="w-full h-40 p-4 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 resize-y shadow-sm transition duration-200 ease-in-out text-base placeholder-gray-400"
-              placeholder="https://example.com/news/article-one\nhttps://example-blog.com/post-about-tech"
+              placeholder="Paste any text here, and we'll find the URLs. For example: \nCheck out this article: https://example.com/news/article-one. It's great."
               disabled={isProcessing}
             />
             <p className="text-xs text-gray-500 mt-2">
@@ -420,7 +414,7 @@ export default function Dashboard() {
               Copy
             </button>
             <div className="space-y-4">
-              {isProcessing && results.length === 0 && Array.from({ length: parseUrls(urls).length }).map((_, i) => <ResultSkeleton key={i} />)}
+              {isProcessing && results.length === 0 && Array.from({ length: extractUrls(urls).length }).map((_, i) => <ResultSkeleton key={i} />)}
               {results.map((result, index) => (
                 <div key={index} className="border border-gray-200 rounded-xl transition-shadow hover:shadow-lg overflow-hidden">
                   <button onClick={() => toggleResult(index)} className="w-full flex items-center justify-between p-4 text-left bg-gray-50 hover:bg-gray-100 transition-colors duration-150">

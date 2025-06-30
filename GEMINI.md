@@ -14,8 +14,8 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   **Sentiment Analysis Dashboard (`/dashboard` - `pages/dashboard.js`)**:
     *   A protected single-page React application with a beautiful and responsive user interface, optimized for mobile use.
     *   Includes a logout button in the top right corner.
-    *   Users can input a list of URLs for bulk processing.
-    *   The application validates the URLs and processes them sequentially.
+    *   Users can paste any block of text containing URLs. The application will automatically extract all valid URLs (http/https) and process them. This allows for easy analysis of citations or documents containing multiple links.
+    *   The application processes the extracted URLs sequentially.
     *   It calls the backend APIs to fetch content, analyze sentiment, and generate reports.
     *   Displays real-time progress, individual results, and a final comprehensive summary report.
     *   Includes copy-to-clipboard functionality for the overall report and individual URL analyses.
