@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/router'
-import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy } from 'lucide-react'
+import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy, Trash2 } from 'lucide-react'
 
 // Skeleton Loader Components
 const Skeleton = ({ className }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
@@ -34,13 +34,62 @@ export default function Dashboard() {
 
   const extractUrls = (text) => {
     if (!text) return [];
-    // Regex to find URLs, avoiding trailing punctuation and ensuring it doesn't capture unwanted characters.
-    const urlRegex = /https?:\/\/[^\s"'<>`]+/g;
+    // A more robust regex to find URLs and avoid capturing trailing punctuation.
+    const urlRegex = /https?:\/\/[^\s<>"()]+/g;
     const matches = text.match(urlRegex) || [];
-    // Clean trailing punctuation from URLs and get unique URLs
-    const cleanedUrls = matches.map(url => url.replace(/[.,!?:;)]+$/, ''));
+    // Clean and get unique URLs
+    const cleanedUrls = matches.map(url => url.replace(/[.,!?:;)]+$/, '').replace(/\.$/, ''));
     const uniqueUrls = [...new Set(cleanedUrls)];
     return uniqueUrls;
+  };
+
+  const regenerateReport = async (currentResults) => {
+    const successfulResults = currentResults.filter(r => r.status === 'success');
+    if (successfulResults.length === 0) {
+      setFinalReport(null);
+      return;
+    }
+
+    setCurrentProgress({ current: successfulResults.length, total: successfulResults.length, status: '[3/3] Generating comprehensive report...' });
+    try {
+      const allKeyMessages = successfulResults.flatMap(r => r.analysis?.keyMessages || []);
+      const allThemes = successfulResults.flatMap(r => r.analysis?.themes || []);
+
+      const headlineResponse = await fetch('/api/generate-headline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allKeyMessages, allThemes }),
+      });
+
+      let generatedHeadline = 'Overall Sentiment Analysis Report';
+      if (headlineResponse.ok) {
+        const { headline } = await headlineResponse.json();
+        generatedHeadline = headline;
+      }
+
+      const reportResponse = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results: successfulResults }),
+      });
+
+      if (reportResponse.ok) {
+        const report = await reportResponse.json();
+        setFinalReport({ ...report, headline: generatedHeadline });
+      } else {
+        const errorData = await reportResponse.json().catch(() => ({}));
+        throw new Error(`Report generation failed: ${reportResponse.status} ${reportResponse.statusText}. ${errorData.error || ''}`);
+      }
+    } catch (error) {
+      console.error('Report generation failed:', error);
+      setError('Failed to generate the final report.');
+    }
+  };
+
+  const handleRemoveResult = (indexToRemove) => {
+    const updatedResults = results.filter((_, index) => index !== indexToRemove);
+    setResults(updatedResults);
+    regenerateReport(updatedResults);
   };
 
   const processUrls = async () => {
@@ -101,38 +150,7 @@ export default function Dashboard() {
     }
 
     if (processedResults.filter(r => r.status === 'success').length > 0) {
-      setCurrentProgress({ current: urlList.length, total: urlList.length, status: '[3/3] Generating comprehensive report...' })
-      try {
-        const successfulResults = processedResults.filter(r => r.status === 'success');
-        const allKeyMessages = successfulResults.flatMap(r => r.analysis?.keyMessages || []);
-        const allThemes = successfulResults.flatMap(r => r.analysis?.themes || []);
-
-        // Generate headline
-        const headlineResponse = await fetch('/api/generate-headline', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ allKeyMessages, allThemes })
-        });
-
-        let generatedHeadline = 'Overall Sentiment Analysis Report';
-        if (headlineResponse.ok) {
-          const { headline } = await headlineResponse.json();
-          generatedHeadline = headline;
-        }
-
-        const reportResponse = await fetch('/api/generate-report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ results: successfulResults })
-        })
-        if (reportResponse.ok) {
-          const report = await reportResponse.json()
-          setFinalReport({ ...report, headline: generatedHeadline })
-        }
-      } catch (error) {
-        console.error('Report generation failed:', error)
-        setError('Failed to generate the final report.')
-      }
+      await regenerateReport(processedResults)
     }
 
     setIsProcessing(false)
@@ -178,7 +196,7 @@ export default function Dashboard() {
     formatted += `Sentiment Distribution:\n`
     for (const [sentiment, value] of Object.entries(report.sentimentDistribution || {})) {
       formatted += `  ${sentiment}: ${Math.round(value * 100)}%\n`
-    }
+    n}
     formatted += `\nCore Themes: ${report.coreThemes?.join(', ') || 'N/A'}\n\n`
     formatted += `Key Insights:\n`
     report.keyInsights?.forEach((insight, i) => {
@@ -430,7 +448,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         {result.status === 'success' ? <CheckCircle className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-red-500" />}
                         <span className={`text-xs sm:text-sm ${result.status === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                          {result.status === 'success' ? 'Analyzed' : 'Failed'}
+                          {result.status === 'success' ? 'Analyzed' : `Failed: ${result.error}`}
                         </span>
                       </div>
                     </div>
@@ -450,6 +468,16 @@ export default function Dashboard() {
                       >
                         <Copy className="w-3 h-3" />
                         Copy
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveResult(index);
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium hover:bg-red-200 transition-colors duration-150 shadow-sm"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Remove
                       </button>
                       {openResult === index ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
                     </div>
