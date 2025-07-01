@@ -279,7 +279,8 @@ export default function Dashboard() {
               value={urls}
               onChange={(e) => setUrls(e.target.value)}
               className="w-full h-40 p-4 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 resize-y shadow-sm transition duration-200 ease-in-out text-base placeholder-gray-400"
-              placeholder="Paste any text here, and we'll find the URLs. For example: \nCheck out this article: https://example.com/news/article-one. It's great."
+              placeholder="Paste any text here, and we'll find the URLs. For example:
+Check out this article: https://example.com/news/article-one. It's great."
               disabled={isProcessing}
             />
             <p className="text-xs text-gray-500 mt-2">
