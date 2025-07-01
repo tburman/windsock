@@ -18,12 +18,13 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   The application processes the extracted URLs sequentially.
     *   It calls the backend APIs to fetch content, analyze sentiment, and generate reports.
     *   Displays real-time progress, individual results, and a final comprehensive summary report.
-    *   Includes copy-to-clipboard functionality for the overall report and individual URL analyses.
-    *   A "Copy All Individual Reports" button is available for bulk copying.
-    *   Users can remove individual URL results after analysis, and the overall report will dynamically update to reflect the change.
-    *   Users can add new URLs to an existing analysis, and the application will process them and update the overall report accordingly.
-    *   Styled with `tailwindcss` and uses `lucide-react` for icons.
-    *   Features a copyright notice in the footer.
+*   Includes a visual spinner overlay on the overall report section to indicate when it is being updated.
+*   Includes copy-to-clipboard functionality for the overall report and individual URL analyses.
+*   A "Copy All Individual Reports" button is available for bulk copying.
+*   Users can remove individual URL results after analysis, and the overall report will dynamically update to reflect the change.
+*   Users can add new URLs to an existing analysis, and the application will process them and update the overall report accordingly.
+*   Styled with `tailwindcss` and uses `lucide-react` for icons.
+*   Features a copyright notice in the footer.
 
 ### Backend (`pages/api/`)
 
