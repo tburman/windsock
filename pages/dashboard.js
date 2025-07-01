@@ -99,63 +99,63 @@ export default function Dashboard() {
       return;
     }
 
-    setIsProcessing(true)
-    setResults([])
-    setFinalReport(null)
-    setError('')
-    setCurrentProgress({ current: 0, total: urlList.length, status: 'Starting analysis...' })
+    setIsProcessing(true);
+    setError('');
+    setCurrentProgress({ current: 0, total: urlList.length, status: 'Starting analysis...' });
 
-    const processedResults = []
+    const newProcessedResults = [];
 
     for (let i = 0; i < urlList.length; i++) {
-      const url = urlList[i]
-      setCurrentProgress({ current: i + 1, total: urlList.length, status: `[1/3] Fetching content for ${url.substring(0, 50)}...` })
+      const url = urlList[i];
+      setCurrentProgress({ current: i + 1, total: urlList.length, status: `[1/3] Fetching content for ${url.substring(0, 50)}...` });
 
       try {
         const fetchResponse = await fetch('/api/fetch-content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
-        })
+        });
 
         if (!fetchResponse.ok) {
           const errorData = await fetchResponse.json().catch(() => ({}))
-          throw new Error(`Fetch failed: ${fetchResponse.status} ${fetchResponse.statusText}. ${errorData.error || ''}`)
+          throw new Error(`Fetch failed: ${fetchResponse.status} ${fetchResponse.statusText}. ${errorData.error || ''}`);
         }
-        const { content, articleTitle } = await fetchResponse.json()
+        const { content, articleTitle } = await fetchResponse.json();
 
-        setCurrentProgress({ current: i + 1, total: urlList.length, status: `[2/3] Analyzing sentiment for ${url.substring(0, 50)}...` })
+        setCurrentProgress({ current: i + 1, total: urlList.length, status: `[2/3] Analyzing sentiment for ${url.substring(0, 50)}...` });
         const analysisResponse = await fetch('/api/analyze-sentiment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content, url })
-        })
+        });
 
         if (!analysisResponse.ok) {
           const errorData = await analysisResponse.json().catch(() => ({}))
-          throw new Error(`Analysis failed: ${analysisResponse.status} ${analysisResponse.statusText}. ${errorData.error || ''}`)
+          throw new Error(`Analysis failed: ${analysisResponse.status} ${analysisResponse.statusText}. ${errorData.error || ''}`);
         }
-        const analysis = await analysisResponse.json()
+        const analysis = await analysisResponse.json();
 
-        const result = { url, content: content.substring(0, 300) + '...', analysis, status: 'success', timestamp: new Date().toISOString(), articleTitle }
-        processedResults.push(result)
-        setResults([...processedResults])
+        const result = { url, content: content.substring(0, 300) + '...', analysis, status: 'success', timestamp: new Date().toISOString(), articleTitle };
+        newProcessedResults.push(result);
 
       } catch (error) {
-        console.error(`Error processing ${url}:`, error)
-        const result = { url, content: '', analysis: null, status: 'error', error: error.message, timestamp: new Date().toISOString(), articleTitle: '' }
-        processedResults.push(result)
-        setResults([...processedResults])
+        console.error(`Error processing ${url}:`, error);
+        const result = { url, content: '', analysis: null, status: 'error', error: error.message, timestamp: new Date().toISOString(), articleTitle: '' };
+        newProcessedResults.push(result);
       }
     }
 
-    if (processedResults.filter(r => r.status === 'success').length > 0) {
-      await regenerateReport(processedResults)
+    const allResults = [...results, ...newProcessedResults];
+    setResults(allResults);
+
+    if (allResults.filter(r => r.status === 'success').length > 0) {
+      await regenerateReport(allResults);
     }
 
-    setIsProcessing(false)
-    setCurrentProgress({ current: 0, total: 0, status: 'Analysis complete!' })
-  }
+    setIsProcessing(false);
+    setCurrentProgress({ current: 0, total: 0, status: 'Analysis complete!' });
+    setUrls(''); // Clear the input box
+  };
 
   const getSentimentColor = (sentiment) => {
     switch (sentiment?.toLowerCase()) {
@@ -294,7 +294,7 @@ export default function Dashboard() {
             className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
           >
             {isProcessing ? <Clock className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-            {isProcessing ? 'Processing...' : 'Analyze Sentiment'}
+            {isProcessing ? 'Processing...' : (results.length > 0 ? 'Analyze More URLs' : 'Analyze Sentiment')}
           </button>
         </header>
 

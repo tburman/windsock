@@ -21,6 +21,7 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   Includes copy-to-clipboard functionality for the overall report and individual URL analyses.
     *   A "Copy All Individual Reports" button is available for bulk copying.
     *   Users can remove individual URL results after analysis, and the overall report will dynamically update to reflect the change.
+    *   Users can add new URLs to an existing analysis, and the application will process them and update the overall report accordingly.
     *   Styled with `tailwindcss` and uses `lucide-react` for icons.
     *   Features a copyright notice in the footer.
 
