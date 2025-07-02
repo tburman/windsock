@@ -145,7 +145,40 @@ export default function Dashboard() {
 
       } catch (error) {
         console.error(`Error processing ${url}:`, error);
-        const result = { url, content: '', analysis: null, status: 'error', error: error.message, timestamp: new Date().toISOString(), articleTitle: '' };
+        
+        // Classify error types for better user messaging
+        let errorMessage = error.message;
+        let errorType = 'general';
+        
+        if (error.message.includes('blocking automated access') || 
+            error.message.includes('anti-bot protection') ||
+            error.message.includes('Parse Error: Header overflow')) {
+          errorType = 'bot-detection';
+          errorMessage = 'Site blocked automated access (anti-bot protection)';
+        } else if (error.message.includes('timeout') || error.message.includes('ECONNRESET')) {
+          errorType = 'network';
+          errorMessage = 'Network timeout or connection issue';
+        } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+          errorType = 'not-found';
+          errorMessage = 'Page not found (404)';
+        } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+          errorType = 'forbidden';
+          errorMessage = 'Access forbidden (403)';
+        } else if (error.message.includes('Insufficient content')) {
+          errorType = 'content';
+          errorMessage = 'Unable to extract meaningful content from page';
+        }
+        
+        const result = { 
+          url, 
+          content: '', 
+          analysis: null, 
+          status: 'error', 
+          error: errorMessage,
+          errorType: errorType,
+          timestamp: new Date().toISOString(), 
+          articleTitle: '' 
+        };
         newProcessedResults.push(result);
       }
     }
@@ -176,6 +209,61 @@ export default function Dashboard() {
       case 'positive': return <TrendingUp className="w-4 h-4" />
       case 'negative': return <TrendingDown className="w-4 h-4" />
       default: return <BarChart3 className="w-4 h-4" />
+    }
+  }
+
+  const getErrorInfo = (result) => {
+    if (result.status === 'success') return null;
+    
+    switch (result.errorType) {
+      case 'bot-detection':
+        return {
+          icon: '🛡️',
+          color: 'text-orange-600',
+          bgColor: 'bg-orange-50 border-orange-200',
+          title: 'Bot Protection',
+          description: 'Site blocks automated access'
+        };
+      case 'network':
+        return {
+          icon: '🌐',
+          color: 'text-blue-600',
+          bgColor: 'bg-blue-50 border-blue-200',
+          title: 'Network Issue',
+          description: 'Connection timeout or error'
+        };
+      case 'not-found':
+        return {
+          icon: '📄',
+          color: 'text-gray-600',
+          bgColor: 'bg-gray-50 border-gray-200',
+          title: 'Page Not Found',
+          description: 'URL does not exist (404)'
+        };
+      case 'forbidden':
+        return {
+          icon: '🚫',
+          color: 'text-red-600',
+          bgColor: 'bg-red-50 border-red-200',
+          title: 'Access Denied',
+          description: 'Permission denied (403)'
+        };
+      case 'content':
+        return {
+          icon: '📝',
+          color: 'text-yellow-600',
+          bgColor: 'bg-yellow-50 border-yellow-200',
+          title: 'Content Issue',
+          description: 'Unable to extract text content'
+        };
+      default:
+        return {
+          icon: '⚠️',
+          color: 'text-red-600',
+          bgColor: 'bg-red-50 border-red-200',
+          title: 'Error',
+          description: result.error || 'Unknown error occurred'
+        };
     }
   }
 
@@ -465,10 +553,26 @@ Check out this article: https://example.com/news/article-one. It's great."
                         <p className="text-xs text-gray-500 truncate">{result.url}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {result.status === 'success' ? <CheckCircle className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-red-500" />}
-                        <span className={`text-xs sm:text-sm ${result.status === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                          {result.status === 'success' ? 'Analyzed' : `Failed: ${result.error}`}
-                        </span>
+                        {result.status === 'success' ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span className="text-xs sm:text-sm text-green-600">Analyzed</span>
+                          </>
+                        ) : (
+                          <>
+                            {(() => {
+                              const errorInfo = getErrorInfo(result);
+                              return (
+                                <>
+                                  <span className="text-sm">{errorInfo.icon}</span>
+                                  <span className={`text-xs sm:text-sm ${errorInfo.color}`}>
+                                    {errorInfo.title}
+                                  </span>
+                                </>
+                              );
+                            })()}
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4 ml-4">
@@ -543,8 +647,23 @@ Check out this article: https://example.com/news/article-one. It's great."
                       )}
                       
                       {result.error && (
-                        <div className="p-3 bg-red-100 border border-red-300 rounded-lg mt-4">
-                          <p className="text-red-800 text-sm font-medium"><strong>Error:</strong> {result.error}</p>
+                        <div className={`p-3 border rounded-lg mt-4 ${getErrorInfo(result).bgColor}`}>
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">{getErrorInfo(result).icon}</span>
+                            <div>
+                              <p className={`text-sm font-medium ${getErrorInfo(result).color}`}>
+                                <strong>{getErrorInfo(result).title}</strong>
+                              </p>
+                              <p className={`text-xs mt-1 ${getErrorInfo(result).color} opacity-80`}>
+                                {getErrorInfo(result).description}
+                              </p>
+                              {result.errorType === 'bot-detection' && (
+                                <p className="text-xs mt-2 text-gray-600">
+                                  💡 Tip: Some financial and news sites actively block automated access. This is normal behavior.
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

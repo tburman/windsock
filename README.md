@@ -8,6 +8,8 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 - 🌐 **Bulk URL Processing**: Analyze sentiment across dozens or hundreds of URLs
 - 🤖 **AI-Powered Analysis**: Uses Google's Gemini Flash Lite via OpenRouter for fast, accurate sentiment analysis
 - 📊 **Comprehensive Reporting**: Get overall sentiment trends, key themes, and "wind direction" insights
+- ⚡ **Smart Caching**: Session-level deduplication prevents redundant URL fetches for better performance
+- 🛡️ **Graceful Error Handling**: Handles bot detection and site blocks with user-friendly error messages
 - 💰 **Cost Effective**: Gemini Flash Lite provides excellent analysis at very low cost
 - 🚀 **Zero DevOps**: Deploy to Vercel with one click
 
@@ -44,16 +46,21 @@ For 100 URLs using Gemini Flash Lite:
 
 ## API Endpoints
 
-- `POST /api/fetch-content` - Scrapes content from URLs
+- `POST /api/fetch-content` - Scrapes content from URLs with session caching and bot detection handling
 - `POST /api/analyze-sentiment` - Analyzes sentiment using OpenRouter
 - `POST /api/generate-report` - Creates comprehensive summary report
+- `POST /api/generate-headline` - Generates dynamic report headlines
+- `POST /api/login` - User authentication
+- `POST /api/logout` - Session termination
+- `GET /api/user` - Authentication status check
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React, Tailwind CSS
-- **Backend**: Next.js API routes
-- **Web Scraping**: Axios + Cheerio
-- **AI**: OpenRouter API + Gemini Flash Lite
+- **Frontend**: Next.js 15, React, Tailwind CSS
+- **Backend**: Next.js API routes with session caching
+- **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion
+- **AI**: OpenRouter API + Google Gemini models (Flash Lite & Flash 1.5)
+- **Authentication**: Cookie-based sessions with middleware protection
 - **Deployment**: Vercel
 
 ## Environment Variables
@@ -61,8 +68,15 @@ For 100 URLs using Gemini Flash Lite:
 Create a `.env.local` file:
 
 ```
-OPENROUTER_API_KEY=your_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key
+LOGIN_USERNAME=your_username
+LOGIN_PASSWORD=your_password
 ```
+
+**Required for deployment:**
+- `OPENROUTER_API_KEY`: Your API key from OpenRouter.ai
+- `LOGIN_USERNAME`: Dashboard access username
+- `LOGIN_PASSWORD`: Dashboard access password
 
 ## Development
 
@@ -72,6 +86,34 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the application.
+
+## Performance & Error Handling
+
+### Smart Caching
+- **Session-level deduplication**: Prevents redundant fetches of the same URL within the same analysis session
+- **1-hour cache expiry**: Balances performance with content freshness
+- **Automatic cleanup**: Removes old cache entries to prevent memory bloat
+
+### Graceful Error Handling
+- **Bot Detection**: Handles sites that block automated access (e.g., Yahoo Finance) with user-friendly messages
+- **Network Issues**: Graceful handling of timeouts and connection problems
+- **Content Extraction**: Clear messaging when pages lack extractable content
+- **Visual Error States**: Color-coded error types with helpful explanations
+
+### Site Compatibility
+- **Anti-bot evasion**: Modern browser headers and user agents
+- **Retry logic**: Exponential backoff for transient failures
+- **Multiple redirects**: Handles complex redirect chains
+- **Content parsing**: Semantic HTML parsing for better text extraction
+
+## Known Limitations
+
+Some websites actively block automated access:
+- **Financial sites** (Yahoo Finance, Bloomberg) use sophisticated bot detection
+- **Social media** platforms restrict scraping
+- **Subscription sites** may require authentication
+
+For these sites, the app will show clear error messages rather than failing silently.
 
 ## License
 

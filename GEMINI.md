@@ -23,6 +23,8 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   A "Copy All Individual Reports" button is available for bulk copying.
 *   Users can remove individual URL results after analysis, and the overall report will dynamically update to reflect the change.
 *   Users can add new URLs to an existing analysis, and the application will process them and update the overall report accordingly.
+*   **Enhanced error handling**: Displays user-friendly error messages with color-coded error types (bot detection, network issues, content problems, etc.) instead of technical error messages.
+*   **Error classification**: Different error types are shown with appropriate icons and explanations (🛡️ Bot Protection, 🌐 Network Issue, 📄 Page Not Found, etc.).
 *   Styled with `tailwindcss` and uses `lucide-react` for icons.
 *   Features a copyright notice in the footer.
 
@@ -32,6 +34,9 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   Fetches the HTML content of a given URL using `axios`.
     *   Uses `cheerio` to parse the HTML and extract the main text content and the article's headline.
     *   Includes a retry mechanism with exponential backoff.
+    *   **Session-level caching**: Implements in-memory deduplication to prevent redundant fetches of the same URL within a session (1-hour expiry).
+    *   **Enhanced bot detection evasion**: Uses modern browser headers, multiple user agents, and site-specific referers.
+    *   **Graceful error handling**: Classifies and handles different error types (bot detection, network issues, content extraction failures).
 *   **`POST /api/analyze-sentiment`**:
     *   Analyzes the sentiment of the provided text content using the OpenRouter API with the `google/gemini-2.5-flash-lite-preview-06-17` model.
     *   Returns a structured JSON object with detailed analysis, including sentiment, confidence, tone, key messages, and more.
@@ -60,10 +65,12 @@ The application consists of a frontend, several backend API endpoints, and an au
 
 ## Key Technologies
 
-*   **Frontend**: Next.js 14, React, Tailwind CSS
-*   **Backend**: Next.js API routes, Vercel Edge Middleware
-*   **Web Scraping**: Axios + Cheerio
-*   **AI**: OpenRouter API + `google/gemini-2.5-flash-lite-preview-06-17`
+*   **Frontend**: Next.js 15, React, Tailwind CSS
+*   **Backend**: Next.js API routes with session caching, Vercel Edge Middleware
+*   **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion and error handling
+*   **AI**: OpenRouter API + Google Gemini models (`google/gemini-2.5-flash-lite-preview-06-17`, `google/gemini-flash-1.5-8b`)
+*   **Caching**: In-memory session-level deduplication with automatic cleanup
+*   **Authentication**: Cookie-based sessions with middleware protection
 *   **Deployment**: Vercel
 
 ## Setup and Development

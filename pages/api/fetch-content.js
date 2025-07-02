@@ -1,12 +1,40 @@
 // ===== pages/api/fetch-content.js =====
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import { Agent } from 'https'
+import { Agent as HttpAgent } from 'http'
 
 const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0'
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15'
 ]
+
+// Configure HTTP agents with increased header size limits
+const httpsAgent = new Agent({
+  maxHeaderSize: 80 * 1024, // 80KB max headers
+  keepAlive: true
+})
+
+const httpAgent = new HttpAgent({
+  maxHeaderSize: 80 * 1024, // 80KB max headers
+  keepAlive: true
+})
+
+// Session-level cache to prevent duplicate fetches
+const sessionCache = new Map()
+
+// Clean up old cache entries (older than 1 hour)
+const CACHE_EXPIRY_MS = 60 * 60 * 1000 // 1 hour
+const cleanupCache = () => {
+  const now = Date.now()
+  for (const [url, entry] of sessionCache.entries()) {
+    if (now - entry.timestamp > CACHE_EXPIRY_MS) {
+      sessionCache.delete(url)
+    }
+  }
+}
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -16,32 +44,77 @@ async function fetchWithRetry(url, maxRetries = 3) {
       const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
       
       console.log(`Attempting to fetch: ${url} with User-Agent: ${userAgent}`)
+      
+      // Enhanced headers for better bot detection evasion
+      const headers = {
+        'User-Agent': userAgent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"'
+      }
+      
+      // Add referer for Yahoo Finance specifically to appear more legitimate
+      if (url.includes('yahoo.com') || url.includes('finance.yahoo.com')) {
+        headers['Referer'] = 'https://finance.yahoo.com/'
+      }
+      
       const response = await axios.get(url, {
-        headers: {
-          'User-Agent': userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-        },
-        timeout: 15000,
-        maxRedirects: 5
+        headers,
+        timeout: 20000, // Increased timeout for slower responses
+        maxRedirects: 10, // More redirects allowed
+        maxContentLength: 50 * 1024 * 1024,
+        maxBodyLength: 50 * 1024 * 1024,
+        httpsAgent: httpsAgent,
+        httpAgent: httpAgent,
+        validateStatus: (status) => status < 500 // Accept 4xx as valid responses
       })
       
       return response.data
     } catch (error) {
       console.log(`Attempt ${i + 1} failed for ${url}:`, error.message)
+      console.log(`Error code: ${error.code}`)
+      console.log(`Error type: ${error.constructor.name}`)
+      
       if (error.response) {
         console.log(`Status: ${error.response.status}`)
-        console.log(`Headers: ${JSON.stringify(error.response.headers)}`)
-        console.log(`Data: ${JSON.stringify(error.response.data)}`)
+        console.log(`Status text: ${error.response.statusText}`)
+        console.log(`Response headers: ${JSON.stringify(error.response.headers, null, 2)}`)
+        if (error.response.data && typeof error.response.data === 'string' && error.response.data.length < 1000) {
+          console.log(`Response data: ${error.response.data}`)
+        }
       } else if (error.request) {
         console.log('No response received')
+        console.log(`Request headers: ${JSON.stringify(error.request.getHeaders?.() || 'N/A')}`)
       } else {
-        console.log('Error', error.message)
+        console.log('Error details:', {
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+          code: error.code
+        })
       }
+      
+      // Special handling for potential bot detection
+      if (error.message.includes('Parse Error') || error.message.includes('Header overflow')) {
+        console.log('⚠️  Confirmed: Bot detection via malformed headers from:', url)
+        console.log('Yahoo Finance and similar sites use this anti-scraping technique')
+        
+        // For the final attempt, suggest alternative approach
+        if (i === maxRetries - 1) {
+          const domain = new URL(url).hostname
+          throw new Error(`Site ${domain} is blocking automated access using anti-bot protection. This content cannot be scraped automatically.`)
+        }
+      }
+      
       if (i === maxRetries - 1) throw error
       await delay(1000 * (i + 1)) // Exponential backoff
     }
@@ -128,8 +201,22 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'URL is required' })
   }
   
+  // Clean up old cache entries periodically
+  cleanupCache()
+  
+  // Check if we have this URL cached
+  const cachedEntry = sessionCache.get(url)
+  if (cachedEntry) {
+    console.log(`Cache hit for ${url} (cached ${Math.round((Date.now() - cachedEntry.timestamp) / 1000)}s ago)`)
+    return res.status(200).json({ 
+      content: cachedEntry.content, 
+      articleTitle: cachedEntry.articleTitle,
+      cached: true
+    })
+  }
+  
   try {
-    console.log(`Fetching content from: ${url}`)
+    console.log(`Cache miss - fetching content from: ${url}`)
     
     const html = await fetchWithRetry(url)
     const content = extractContent(html, url)
@@ -139,9 +226,16 @@ export default async function handler(req, res) {
       throw new Error('Insufficient content extracted')
     }
     
-    console.log(`Successfully extracted ${content.length} characters from ${url}`)
+    // Cache the successful result
+    sessionCache.set(url, {
+      content,
+      articleTitle,
+      timestamp: Date.now()
+    })
     
-    res.status(200).json({ content, articleTitle })
+    console.log(`Successfully extracted ${content.length} characters from ${url} (cached for future requests)`)
+    
+    res.status(200).json({ content, articleTitle, cached: false })
   } catch (error) {
     console.error(`Failed to fetch ${url}:`, error.message)
     res.status(500).json({ 
