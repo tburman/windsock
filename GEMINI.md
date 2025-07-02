@@ -28,6 +28,7 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   **Enhanced error handling**: Displays user-friendly error messages with color-coded error types (bot detection, network issues, content problems, etc.) instead of technical error messages.
 *   **Error classification**: Different error types are shown with appropriate icons and explanations (🛡️ Bot Protection, 🌐 Network Issue, 📄 Page Not Found, etc.).
 *   **Smart report regeneration**: Only regenerates comprehensive reports when removing URLs with successful analyses, skipping unnecessary regeneration for error results.
+*   **Reset functionality**: Provides a "Start Fresh" button that appears when results exist, allowing users to completely clear all analysis data with confirmation dialog for safety.
 *   Styled with `tailwindcss` and uses `lucide-react` for icons.
 *   Features a copyright notice in the footer.
 

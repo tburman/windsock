@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/router'
-import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy, Trash2 } from 'lucide-react'
+import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy, Trash2, RotateCcw } from 'lucide-react'
 
 // Skeleton Loader Components
 const Skeleton = ({ className }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
@@ -344,6 +344,28 @@ export default function Dashboard() {
     router.push('/')
   }
 
+  const handleReset = () => {
+    if (results.length === 0 && !finalReport) {
+      // Nothing to reset
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Are you sure you want to start fresh? This will clear all current results and analysis.'
+    )
+    
+    if (confirmed) {
+      setResults([])
+      setFinalReport(null)
+      setUrls('')
+      setError('')
+      setCurrentProgress({ current: 0, total: 0, status: '' })
+      setOpenResult(null)
+      setIsReportUpdating(false)
+      console.log('Analysis reset - starting fresh')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans text-gray-800">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -394,14 +416,27 @@ Check out this article: https://example.com/news/article-one. It's great."
             </div>
           )}
 
-          <button
-            onClick={processUrls}
-            disabled={isProcessing || !urls.trim()}
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-          >
-            {isProcessing ? <Clock className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-            {isProcessing ? 'Processing...' : (results.length > 0 ? 'Analyze More URLs' : 'Analyze Sentiment')}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={processUrls}
+              disabled={isProcessing || !urls.trim()}
+              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              {isProcessing ? <Clock className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+              {isProcessing ? 'Processing...' : (results.length > 0 ? 'Analyze More URLs' : 'Analyze Sentiment')}
+            </button>
+            
+            {(results.length > 0 || finalReport) && (
+              <button
+                onClick={handleReset}
+                disabled={isProcessing}
+                className="flex-1 sm:flex-none bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+              >
+                <RotateCcw className="w-5 h-5" />
+                Start Fresh
+              </button>
+            )}
+          </div>
         </header>
 
         

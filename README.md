@@ -10,6 +10,7 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 - 📊 **Comprehensive Reporting**: Get overall sentiment trends, key themes, and "wind direction" insights
 - ⚡ **Smart Caching**: Session-level deduplication prevents redundant URL fetches for better performance
 - 🛡️ **Graceful Error Handling**: Handles bot detection and site blocks with user-friendly error messages
+- 🔄 **Reset Functionality**: Start fresh with a complete analysis reset at any time
 - 💰 **Cost Effective**: Gemini Flash Lite provides excellent analysis at very low cost
 - 🚀 **Zero DevOps**: Deploy to Vercel with one click
 
@@ -103,6 +104,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the application.
 - **Content Extraction**: Clear messaging when pages lack extractable content
 - **Visual Error States**: Color-coded error types with helpful explanations
 - **Smart Report Updates**: Only regenerates reports when removing successful analyses, not error results
+- **Reset Functionality**: Complete analysis reset with confirmation dialog for starting fresh
 
 ### Site Compatibility
 - **Anti-bot evasion**: Modern browser headers and user agents
