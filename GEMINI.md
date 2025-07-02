@@ -1,4 +1,4 @@
-# Project: URL Sentiment Analyzer
+# Project: Windsock (BETA) - URL Sentiment Analyzer
 
 This is a Next.js application that allows users to analyze the sentiment of web pages by providing a list of URLs.
 
@@ -9,10 +9,12 @@ The application consists of a frontend, several backend API endpoints, and an au
 ### Frontend
 
 *   **Login Page (`/` - `app/page.js`)**:
-    *   A simple login form to authenticate users.
+    *   A beautifully designed login form with consistent Windsock branding.
+    *   Features the Wind icon, Windsock title with BETA indicator, and gradient background.
     *   Redirects authenticated users to the dashboard.
 *   **Sentiment Analysis Dashboard (`/dashboard` - `pages/dashboard.js`)**:
     *   A protected single-page React application with a beautiful and responsive user interface, optimized for mobile use.
+    *   Features consistent branding with Wind icon, Windsock title with BETA indicator, and professional styling.
     *   Includes a logout button in the top right corner.
     *   Users can paste any block of text containing URLs. The application will automatically extract all valid URLs (http/https) and process them. This allows for easy analysis of citations or documents containing multiple links.
     *   The application processes the extracted URLs sequentially.
@@ -37,7 +39,7 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   Includes a retry mechanism with exponential backoff.
     *   **Global shared caching**: Implements intelligent in-memory caching shared across all users with content hash validation.
     *   **Domain-aware TTL**: Different cache expiry times based on content type (news: 2h, finance: 1h, social: 30m, blogs: 12h).
-    *   **LRU memory management**: Automatically evicts least-used entries when cache reaches 1000 URLs (~50MB).
+    *   **LRU memory management**: Automatically evicts least-used entries when cache reaches 2500 URLs (~125MB).
     *   **Content change detection**: Only refetches when content hash changes, not just on time expiry.
     *   **Enhanced bot detection evasion**: Uses modern browser headers, multiple user agents, and site-specific referers.
     *   **Graceful error handling**: Classifies and handles different error types (bot detection, network issues, content extraction failures).
@@ -108,4 +110,4 @@ LOGIN_PASSWORD=your_login_password
 
 ## License
 
-This project is licensed under the MIT License.
+All rights reserved. Copyright © 2025 Tushar Burman.

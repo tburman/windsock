@@ -1,5 +1,5 @@
 // ===== README.md =====
-# Windsock
+# Windsock (BETA)
 
 A Next.js web application that analyzes sentiment across multiple URLs to show you which way the wind is blowing.
 
@@ -93,8 +93,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the application.
 - **Global shared cache**: All users benefit from cached content across sessions
 - **Content hash validation**: Only refetches when content actually changes, not just on time expiry
 - **Domain-aware TTL**: News sites (2h), financial sites (1h), social media (30m), blogs (12h)
-- **LRU memory management**: Automatic eviction of least-used entries when cache reaches 1000 URLs
+- **LRU memory management**: Automatic eviction of least-used entries when cache reaches 2500 URLs (~125MB)
 - **Intelligent cleanup**: Removes expired entries every 30 minutes to maintain performance
+- **High capacity**: Supports analysis of up to 2000 URLs without cache pressure
 
 ### Graceful Error Handling
 - **Bot Detection**: Handles sites that block automated access (e.g., Yahoo Finance) with user-friendly messages
@@ -120,4 +121,4 @@ For these sites, the app will show clear error messages rather than failing sile
 
 ## License
 
-MIT
+All rights reserved. Copyright © 2025 Tushar Burman.

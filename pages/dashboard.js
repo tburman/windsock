@@ -354,7 +354,10 @@ export default function Dashboard() {
                 <Wind className="w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight">Windsock</h1>
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight flex items-center gap-3">
+                  Windsock
+                  <span className="text-xs font-bold bg-blue-500 text-white px-2 py-1 rounded-full uppercase tracking-wider">Beta</span>
+                </h1>
                 <p className="text-gray-600 text-sm sm:text-base mt-1">See which way the wind is blowing for any URL.</p>
               </div>
             </div>

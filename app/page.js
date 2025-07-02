@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Wind } from 'lucide-react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -29,9 +30,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Login</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center">
+      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-blue-100">
+        <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="bg-blue-600 p-3 rounded-full text-white shadow-lg">
+            <Wind className="w-8 h-8" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-tight flex items-center justify-center gap-3">
+              Windsock
+              <span className="text-xs font-bold bg-blue-500 text-white px-2 py-1 rounded-full uppercase tracking-wider">Beta</span>
+            </h1>
+            <p className="text-gray-600 text-sm mt-1">See which way the wind is blowing</p>
+          </div>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">

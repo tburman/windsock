@@ -25,7 +25,7 @@ const httpAgent = new HttpAgent({
 
 // Enhanced global cache configuration
 const globalCache = new Map()
-const MAX_CACHE_SIZE = 1000 // Maximum number of cached entries
+const MAX_CACHE_SIZE = 2500 // Maximum number of cached entries (~125MB at 50KB avg)
 const DEFAULT_CACHE_TTL = 6 * 60 * 60 * 1000 // 6 hours default
 const CACHE_CLEANUP_INTERVAL = 30 * 60 * 1000 // Clean up every 30 minutes
 
@@ -71,7 +71,7 @@ const evictLRUEntries = () => {
   const entries = Array.from(globalCache.entries())
   entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed)
   
-  const entriesToRemove = entries.slice(0, globalCache.size - MAX_CACHE_SIZE + 100) // Remove extra to avoid frequent evictions
+  const entriesToRemove = entries.slice(0, globalCache.size - MAX_CACHE_SIZE + 250) // Remove extra to avoid frequent evictions
   entriesToRemove.forEach(([url]) => globalCache.delete(url))
   
   console.log(`Cache eviction: removed ${entriesToRemove.length} LRU entries`)
