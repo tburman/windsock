@@ -92,9 +92,18 @@ export default function Dashboard() {
   };
 
   const handleRemoveResult = (indexToRemove) => {
+    const resultToRemove = results[indexToRemove];
     const updatedResults = results.filter((_, index) => index !== indexToRemove);
     setResults(updatedResults);
-    regenerateReport(updatedResults);
+    
+    // Only regenerate report if the removed result had successful analysis
+    // Error results (bot detection, network issues, etc.) don't contribute to reports
+    if (resultToRemove.status === 'success' && resultToRemove.analysis) {
+      console.log(`Regenerating report after removing successful result: ${resultToRemove.url}`);
+      regenerateReport(updatedResults);
+    } else {
+      console.log(`Skipping report regeneration for error result: ${resultToRemove.url} (${resultToRemove.status})`);
+    }
   };
 
   const processUrls = async () => {

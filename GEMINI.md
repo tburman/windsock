@@ -25,6 +25,7 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   Users can add new URLs to an existing analysis, and the application will process them and update the overall report accordingly.
 *   **Enhanced error handling**: Displays user-friendly error messages with color-coded error types (bot detection, network issues, content problems, etc.) instead of technical error messages.
 *   **Error classification**: Different error types are shown with appropriate icons and explanations (🛡️ Bot Protection, 🌐 Network Issue, 📄 Page Not Found, etc.).
+*   **Smart report regeneration**: Only regenerates comprehensive reports when removing URLs with successful analyses, skipping unnecessary regeneration for error results.
 *   Styled with `tailwindcss` and uses `lucide-react` for icons.
 *   Features a copyright notice in the footer.
 
@@ -34,7 +35,10 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   Fetches the HTML content of a given URL using `axios`.
     *   Uses `cheerio` to parse the HTML and extract the main text content and the article's headline.
     *   Includes a retry mechanism with exponential backoff.
-    *   **Session-level caching**: Implements in-memory deduplication to prevent redundant fetches of the same URL within a session (1-hour expiry).
+    *   **Global shared caching**: Implements intelligent in-memory caching shared across all users with content hash validation.
+    *   **Domain-aware TTL**: Different cache expiry times based on content type (news: 2h, finance: 1h, social: 30m, blogs: 12h).
+    *   **LRU memory management**: Automatically evicts least-used entries when cache reaches 1000 URLs (~50MB).
+    *   **Content change detection**: Only refetches when content hash changes, not just on time expiry.
     *   **Enhanced bot detection evasion**: Uses modern browser headers, multiple user agents, and site-specific referers.
     *   **Graceful error handling**: Classifies and handles different error types (bot detection, network issues, content extraction failures).
 *   **`POST /api/analyze-sentiment`**:
@@ -69,7 +73,7 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   **Backend**: Next.js API routes with session caching, Vercel Edge Middleware
 *   **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion and error handling
 *   **AI**: OpenRouter API + Google Gemini models (`google/gemini-2.5-flash-lite-preview-06-17`, `google/gemini-flash-1.5-8b`)
-*   **Caching**: In-memory session-level deduplication with automatic cleanup
+*   **Caching**: Global shared cache with content hash validation, domain-aware TTL, and LRU memory management
 *   **Authentication**: Cookie-based sessions with middleware protection
 *   **Deployment**: Vercel
 

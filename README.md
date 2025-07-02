@@ -90,15 +90,18 @@ Open [http://localhost:3000](http://localhost:3000) to see the application.
 ## Performance & Error Handling
 
 ### Smart Caching
-- **Session-level deduplication**: Prevents redundant fetches of the same URL within the same analysis session
-- **1-hour cache expiry**: Balances performance with content freshness
-- **Automatic cleanup**: Removes old cache entries to prevent memory bloat
+- **Global shared cache**: All users benefit from cached content across sessions
+- **Content hash validation**: Only refetches when content actually changes, not just on time expiry
+- **Domain-aware TTL**: News sites (2h), financial sites (1h), social media (30m), blogs (12h)
+- **LRU memory management**: Automatic eviction of least-used entries when cache reaches 1000 URLs
+- **Intelligent cleanup**: Removes expired entries every 30 minutes to maintain performance
 
 ### Graceful Error Handling
 - **Bot Detection**: Handles sites that block automated access (e.g., Yahoo Finance) with user-friendly messages
 - **Network Issues**: Graceful handling of timeouts and connection problems
 - **Content Extraction**: Clear messaging when pages lack extractable content
 - **Visual Error States**: Color-coded error types with helpful explanations
+- **Smart Report Updates**: Only regenerates reports when removing successful analyses, not error results
 
 ### Site Compatibility
 - **Anti-bot evasion**: Modern browser headers and user agents

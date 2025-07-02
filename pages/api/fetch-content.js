@@ -3,6 +3,7 @@ import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { Agent } from 'https'
 import { Agent as HttpAgent } from 'http'
+import crypto from 'crypto'
 
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -22,17 +23,87 @@ const httpAgent = new HttpAgent({
   keepAlive: true
 })
 
-// Session-level cache to prevent duplicate fetches
-const sessionCache = new Map()
+// Enhanced global cache configuration
+const globalCache = new Map()
+const MAX_CACHE_SIZE = 1000 // Maximum number of cached entries
+const DEFAULT_CACHE_TTL = 6 * 60 * 60 * 1000 // 6 hours default
+const CACHE_CLEANUP_INTERVAL = 30 * 60 * 1000 // Clean up every 30 minutes
 
-// Clean up old cache entries (older than 1 hour)
-const CACHE_EXPIRY_MS = 60 * 60 * 1000 // 1 hour
+// Domain-specific TTL configurations
+const DOMAIN_TTL_CONFIG = {
+  'news': 2 * 60 * 60 * 1000,     // 2 hours for news sites
+  'finance': 1 * 60 * 60 * 1000,   // 1 hour for financial sites
+  'social': 30 * 60 * 1000,        // 30 minutes for social media
+  'blog': 12 * 60 * 60 * 1000,     // 12 hours for blogs
+  'default': DEFAULT_CACHE_TTL      // 6 hours for everything else
+}
+
+// News and financial domains (shorter TTL)
+const NEWS_DOMAINS = ['news.', 'cnn.com', 'bbc.com', 'reuters.com', 'bloomberg.com', 'cnbc.com', 'ap.com', 'nbc.com', 'cbs.com', 'abc.com']
+const FINANCE_DOMAINS = ['finance.yahoo.com', 'marketwatch.com', 'fool.com', 'seeking', 'morningstar.com', 'barrons.com', 'wsj.com']
+const SOCIAL_DOMAINS = ['twitter.com', 'x.com', 'facebook.com', 'linkedin.com', 'reddit.com', 'medium.com']
+const BLOG_DOMAINS = ['wordpress.com', 'blogspot.com', 'substack.com', 'ghost.']
+
+// Generate content hash for cache validation
+const generateContentHash = (content) => {
+  // Use first 1KB + content length for fast hashing
+  const sample = content.substring(0, 1024) + content.length
+  return crypto.createHash('md5').update(sample, 'utf8').digest('hex')
+}
+
+// Determine TTL based on domain
+const getDomainTTL = (url) => {
+  const hostname = new URL(url).hostname.toLowerCase()
+  
+  if (NEWS_DOMAINS.some(domain => hostname.includes(domain))) return DOMAIN_TTL_CONFIG.news
+  if (FINANCE_DOMAINS.some(domain => hostname.includes(domain))) return DOMAIN_TTL_CONFIG.finance
+  if (SOCIAL_DOMAINS.some(domain => hostname.includes(domain))) return DOMAIN_TTL_CONFIG.social
+  if (BLOG_DOMAINS.some(domain => hostname.includes(domain))) return DOMAIN_TTL_CONFIG.blog
+  
+  return DOMAIN_TTL_CONFIG.default
+}
+
+// LRU eviction - remove least recently used entries when cache is full
+const evictLRUEntries = () => {
+  if (globalCache.size <= MAX_CACHE_SIZE) return
+  
+  // Sort by last accessed time and remove oldest entries
+  const entries = Array.from(globalCache.entries())
+  entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed)
+  
+  const entriesToRemove = entries.slice(0, globalCache.size - MAX_CACHE_SIZE + 100) // Remove extra to avoid frequent evictions
+  entriesToRemove.forEach(([url]) => globalCache.delete(url))
+  
+  console.log(`Cache eviction: removed ${entriesToRemove.length} LRU entries`)
+}
+
+// Clean up expired entries and manage memory
 const cleanupCache = () => {
   const now = Date.now()
-  for (const [url, entry] of sessionCache.entries()) {
-    if (now - entry.timestamp > CACHE_EXPIRY_MS) {
-      sessionCache.delete(url)
+  let removedCount = 0
+  
+  for (const [url, entry] of globalCache.entries()) {
+    if (now - entry.timestamp > entry.ttl) {
+      globalCache.delete(url)
+      removedCount++
     }
+  }
+  
+  if (removedCount > 0) {
+    console.log(`Cache cleanup: removed ${removedCount} expired entries`)
+  }
+  
+  // Perform LRU eviction if cache is still too large
+  evictLRUEntries()
+}
+
+// Periodic cache cleanup
+let lastCleanup = Date.now()
+const maybeCleanupCache = () => {
+  const now = Date.now()
+  if (now - lastCleanup > CACHE_CLEANUP_INTERVAL) {
+    cleanupCache()
+    lastCleanup = now
   }
 }
 
@@ -201,22 +272,33 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'URL is required' })
   }
   
-  // Clean up old cache entries periodically
-  cleanupCache()
+  // Periodic cache cleanup
+  maybeCleanupCache()
   
   // Check if we have this URL cached
-  const cachedEntry = sessionCache.get(url)
-  if (cachedEntry) {
-    console.log(`Cache hit for ${url} (cached ${Math.round((Date.now() - cachedEntry.timestamp) / 1000)}s ago)`)
+  const cachedEntry = globalCache.get(url)
+  const now = Date.now()
+  
+  if (cachedEntry && (now - cachedEntry.timestamp) < cachedEntry.ttl) {
+    // Update last accessed time for LRU
+    cachedEntry.lastAccessed = now
+    cachedEntry.hitCount = (cachedEntry.hitCount || 0) + 1
+    
+    const cacheAge = Math.round((now - cachedEntry.timestamp) / 1000 / 60) // minutes
+    const ttlHours = Math.round(cachedEntry.ttl / 1000 / 60 / 60)
+    console.log(`🚀 Cache HIT for ${url} (age: ${cacheAge}m, TTL: ${ttlHours}h, hits: ${cachedEntry.hitCount})`)
+    
     return res.status(200).json({ 
       content: cachedEntry.content, 
       articleTitle: cachedEntry.articleTitle,
-      cached: true
+      cached: true,
+      cacheAge: cacheAge,
+      contentHash: cachedEntry.contentHash
     })
   }
   
   try {
-    console.log(`Cache miss - fetching content from: ${url}`)
+    console.log(`💾 Cache MISS - fetching content from: ${url}`)
     
     const html = await fetchWithRetry(url)
     const content = extractContent(html, url)
@@ -226,18 +308,42 @@ export default async function handler(req, res) {
       throw new Error('Insufficient content extracted')
     }
     
+    // Generate content hash and determine TTL
+    const contentHash = generateContentHash(content)
+    const ttl = getDomainTTL(url)
+    const ttlHours = Math.round(ttl / 1000 / 60 / 60)
+    
+    // Check if content changed (for existing cache entries)
+    let contentChanged = true
+    if (cachedEntry) {
+      contentChanged = cachedEntry.contentHash !== contentHash
+      console.log(`🔍 Content ${contentChanged ? 'CHANGED' : 'UNCHANGED'} for ${url}`)
+    }
+    
     // Cache the successful result
-    sessionCache.set(url, {
+    globalCache.set(url, {
       content,
       articleTitle,
-      timestamp: Date.now()
+      contentHash,
+      timestamp: now,
+      lastAccessed: now,
+      ttl,
+      hitCount: 0,
+      fetchCount: (cachedEntry?.fetchCount || 0) + 1
     })
     
-    console.log(`Successfully extracted ${content.length} characters from ${url} (cached for future requests)`)
+    console.log(`✅ Cached ${url} (${content.length} chars, TTL: ${ttlHours}h, hash: ${contentHash.substring(0, 8)})`)
+    console.log(`📊 Cache stats: ${globalCache.size}/${MAX_CACHE_SIZE} entries`)
     
-    res.status(200).json({ content, articleTitle, cached: false })
+    res.status(200).json({ 
+      content, 
+      articleTitle, 
+      cached: false, 
+      contentHash,
+      contentChanged: cachedEntry ? contentChanged : undefined
+    })
   } catch (error) {
-    console.error(`Failed to fetch ${url}:`, error.message)
+    console.error(`❌ Failed to fetch ${url}:`, error.message)
     res.status(500).json({ 
       error: `Failed to fetch content: ${error.message}`,
       url 
