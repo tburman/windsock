@@ -5,10 +5,14 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 
 ## Features
 
-- 🌐 **Bulk URL Processing**: Analyze sentiment across dozens or hundreds of URLs
+- 🌐 **Dual Input Modes**: Choose between URL input or semantic search to find relevant content
+- 🔍 **Smart Search**: Use Exa.ai to discover relevant URLs with natural language queries and intelligent date constraints
+- 📅 **Advanced Date Parsing**: Understands "today", "this week", "june and july 2025", and specific date formats
+- 👤 **Author Extraction**: Automatically identifies and displays article authors using multiple detection strategies
+- 📰 **Publication Dates**: Shows article publication dates from search results for verification
 - 🤖 **AI-Powered Analysis**: Uses Google's Gemini Flash Lite via OpenRouter for fast, accurate sentiment analysis
 - 📊 **Comprehensive Reporting**: Get overall sentiment trends, key themes, and "wind direction" insights
-- ⚡ **Smart Caching**: Session-level deduplication prevents redundant URL fetches for better performance
+- ⚡ **Smart Caching**: Global shared cache with content hash validation for optimal performance
 - 🛡️ **Graceful Error Handling**: Handles bot detection and site blocks with user-friendly error messages
 - 🔄 **Reset Functionality**: Start fresh with a complete analysis reset at any time
 - 💰 **Cost Effective**: Gemini Flash Lite provides excellent analysis at very low cost
@@ -16,10 +20,16 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 
 ## Quick Start
 
-### 1. Get Your OpenRouter API Key
+### 1. Get Your API Keys
 
+**OpenRouter (Required):**
 1. Sign up at [OpenRouter.ai](https://openrouter.ai)
 2. Add credits to your account (a few dollars goes a long way)
+3. Copy your API key
+
+**Exa.ai (Required for Search):**
+1. Sign up at [Exa.ai](https://exa.ai)
+2. Get your API key from the dashboard
 3. Copy your API key
 
 ### 2. Deploy to Vercel
@@ -27,16 +37,25 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 1. Create a new GitHub repository
 2. Upload all the files from this project
 3. Connect your GitHub repo to Vercel
-4. Add your OpenRouter API key as an environment variable:
-   - Key: `OPENROUTER_API_KEY`
-   - Value: Your actual API key
+4. Add your API keys as environment variables:
+   - `OPENROUTER_API_KEY`: Your OpenRouter API key
+   - `EXA_API_KEY`: Your Exa.ai API key
+   - `LOGIN_USERNAME`: Your dashboard username
+   - `LOGIN_PASSWORD`: Your dashboard password
 
 ### 3. Start Analyzing
 
+**URL Mode:**
 - Paste URLs (one per line) into the text area
 - Click "Analyze Sentiment"
-- Watch real-time progress as each URL is processed
-- Get comprehensive sentiment analysis and reporting
+
+**Search Mode:**
+- Toggle to Search mode  
+- Enter queries like "Tesla earnings today", "Bitcoin news this week", or "parth jindal in june and july 2025"
+- Choose number of results (10, 25, 50, or 100)
+- Click "Search & Analyze"
+
+Watch real-time progress as content is discovered and analyzed, then get comprehensive sentiment analysis and reporting with author attribution and publication dates.
 
 ## Cost Estimate
 
@@ -47,7 +66,8 @@ For 100 URLs using Gemini Flash Lite:
 
 ## API Endpoints
 
-- `POST /api/fetch-content` - Scrapes content from URLs with session caching and bot detection handling
+- `POST /api/search-exa` - **NEW**: Semantic search using Exa.ai with intelligent date parsing and configurable result limits
+- `POST /api/fetch-content` - Scrapes content from URLs with global shared caching, bot detection handling, and author extraction  
 - `POST /api/analyze-sentiment` - Analyzes sentiment using OpenRouter
 - `POST /api/generate-report` - Creates comprehensive summary report
 - `POST /api/generate-headline` - Generates dynamic report headlines
@@ -58,7 +78,8 @@ For 100 URLs using Gemini Flash Lite:
 ## Tech Stack
 
 - **Frontend**: Next.js 15, React, Tailwind CSS
-- **Backend**: Next.js API routes with session caching
+- **Backend**: Next.js API routes with global shared caching
+- **Content Discovery**: Exa.ai semantic search with date constraint detection
 - **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion
 - **AI**: OpenRouter API + Google Gemini models (Flash Lite & Flash 1.5)
 - **Authentication**: Cookie-based sessions with middleware protection
@@ -70,12 +91,14 @@ Create a `.env.local` file:
 
 ```
 OPENROUTER_API_KEY=your_openrouter_api_key
+EXA_API_KEY=your_exa_api_key
 LOGIN_USERNAME=your_username
 LOGIN_PASSWORD=your_password
 ```
 
 **Required for deployment:**
 - `OPENROUTER_API_KEY`: Your API key from OpenRouter.ai
+- `EXA_API_KEY`: Your API key from Exa.ai (required for search functionality)
 - `LOGIN_USERNAME`: Dashboard access username
 - `LOGIN_PASSWORD`: Dashboard access password
 

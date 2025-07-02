@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/router'
-import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy, Trash2, RotateCcw } from 'lucide-react'
+import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy, Trash2, RotateCcw, Search, Toggle, User } from 'lucide-react'
 
 // Skeleton Loader Components
 const Skeleton = ({ className }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
@@ -23,6 +23,9 @@ const ResultSkeleton = () => (
 
 export default function Dashboard() {
   const [urls, setUrls] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchMode, setIsSearchMode] = useState(false)
+  const [searchResultLimit, setSearchResultLimit] = useState(25)
   const [isProcessing, setIsProcessing] = useState(false)
   const [results, setResults] = useState([])
   const [currentProgress, setCurrentProgress] = useState({ current: 0, total: 0, status: '' })
@@ -42,6 +45,29 @@ export default function Dashboard() {
     const cleanedUrls = matches.map(url => url.replace(/[.,!?:;)]+$/, '').replace(/\.$/, ''));
     const uniqueUrls = [...new Set(cleanedUrls)];
     return uniqueUrls;
+  };
+
+  const searchUrls = async (query) => {
+    try {
+      setCurrentProgress({ current: 0, total: 1, status: 'Searching for relevant URLs...' });
+      
+      const response = await fetch('/api/search-exa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, numResults: searchResultLimit })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.urls; // Return full objects with url and publishedDate
+    } catch (error) {
+      console.error('Search error:', error);
+      throw error;
+    }
   };
 
   const regenerateReport = async (currentResults) => {
@@ -107,9 +133,29 @@ export default function Dashboard() {
   };
 
   const processUrls = async () => {
-    const urlList = extractUrls(urls);
-    if (urlList.length === 0) {
-      setError('No valid URLs found in the provided text. Make sure URLs start with http:// or https://');
+    let urlList;
+    
+    try {
+      if (isSearchMode) {
+        if (!searchQuery.trim()) {
+          setError('Please enter a search query');
+          return;
+        }
+        urlList = await searchUrls(searchQuery.trim());
+        if (urlList.length === 0) {
+          setError('No URLs found for your search query. Try a different search term.');
+          return;
+        }
+      } else {
+        urlList = extractUrls(urls);
+        if (urlList.length === 0) {
+          setError('No valid URLs found in the provided text. Make sure URLs start with http:// or https://');
+          return;
+        }
+      }
+    } catch (error) {
+      setError(`Search failed: ${error.message}`);
+      setIsProcessing(false);
       return;
     }
 
@@ -120,7 +166,11 @@ export default function Dashboard() {
     const newProcessedResults = [];
 
     for (let i = 0; i < urlList.length; i++) {
-      const url = urlList[i];
+      // Handle both string URLs (manual input) and objects (from Exa search)
+      const urlItem = urlList[i];
+      const url = typeof urlItem === 'string' ? urlItem : urlItem.url;
+      const publishedDate = typeof urlItem === 'object' ? urlItem.publishedDate : null;
+      
       setCurrentProgress({ current: i + 1, total: urlList.length, status: `[1/3] Fetching content for ${url.substring(0, 50)}...` });
 
       try {
@@ -134,7 +184,7 @@ export default function Dashboard() {
           const errorData = await fetchResponse.json().catch(() => ({}))
           throw new Error(`Fetch failed: ${fetchResponse.status} ${fetchResponse.statusText}. ${errorData.error || ''}`);
         }
-        const { content, articleTitle } = await fetchResponse.json();
+        const { content, articleTitle, author } = await fetchResponse.json();
 
         setCurrentProgress({ current: i + 1, total: urlList.length, status: `[2/3] Analyzing sentiment for ${url.substring(0, 50)}...` });
         const analysisResponse = await fetch('/api/analyze-sentiment', {
@@ -149,7 +199,7 @@ export default function Dashboard() {
         }
         const analysis = await analysisResponse.json();
 
-        const result = { url, content: content.substring(0, 300) + '...', analysis, status: 'success', timestamp: new Date().toISOString(), articleTitle };
+        const result = { url, content: content.substring(0, 300) + '...', analysis, status: 'success', timestamp: new Date().toISOString(), articleTitle, author, publishedDate };
         newProcessedResults.push(result);
 
       } catch (error) {
@@ -186,7 +236,9 @@ export default function Dashboard() {
           error: errorMessage,
           errorType: errorType,
           timestamp: new Date().toISOString(), 
-          articleTitle: '' 
+          articleTitle: '',
+          author: null,
+          publishedDate
         };
         newProcessedResults.push(result);
       }
@@ -201,7 +253,13 @@ export default function Dashboard() {
 
     setIsProcessing(false);
     setCurrentProgress({ current: 0, total: 0, status: 'Analysis complete!' });
-    setUrls(''); // Clear the input box
+    
+    // Clear the appropriate input based on mode
+    if (isSearchMode) {
+      setSearchQuery('');
+    } else {
+      setUrls('');
+    }
   };
 
   const getSentimentColor = (sentiment) => {
@@ -358,6 +416,7 @@ export default function Dashboard() {
       setResults([])
       setFinalReport(null)
       setUrls('')
+      setSearchQuery('')
       setError('')
       setCurrentProgress({ current: 0, total: 0, status: '' })
       setOpenResult(null)
@@ -393,21 +452,86 @@ export default function Dashboard() {
           </div>
           
           <div className="mb-6">
-            <label htmlFor="url-input" className="block text-sm font-semibold text-gray-700 mb-2">
-              Paste text containing URLs to analyze:
-            </label>
-            <textarea
-              id="url-input"
-              value={urls}
-              onChange={(e) => setUrls(e.target.value)}
-              className="w-full h-40 p-4 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 resize-y shadow-sm transition duration-200 ease-in-out text-base placeholder-gray-400"
-              placeholder="Paste any text here, and we'll find the URLs. For example:
+            {/* Toggle between URLs and Search */}
+            <div className="flex items-center gap-4 mb-4">
+              <button
+                onClick={() => setIsSearchMode(false)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  !isSearchMode 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Link2 className="w-4 h-4" />
+                URLs
+              </button>
+              <button
+                onClick={() => setIsSearchMode(true)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isSearchMode 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Search className="w-4 h-4" />
+                Search
+              </button>
+            </div>
+
+            {isSearchMode ? (
+              <>
+                <label htmlFor="search-input" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Search for relevant content to analyze:
+                </label>
+                <input
+                  id="search-input"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full p-4 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-200 ease-in-out text-base placeholder-gray-400"
+                  placeholder="e.g., 'Tesla earnings today', 'Bitcoin latest news', 'OpenAI recent developments'"
+                  disabled={isProcessing}
+                />
+                <div className="flex items-center gap-2 mt-3">
+                  <label htmlFor="result-limit" className="text-sm font-medium text-gray-700">
+                    Number of results:
+                  </label>
+                  <select
+                    id="result-limit"
+                    value={searchResultLimit}
+                    onChange={(e) => setSearchResultLimit(parseInt(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    disabled={isProcessing}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  We'll find relevant URLs and analyze their sentiment. Supports date constraints like "today", "this week", "past 30 days".
+                </p>
+              </>
+            ) : (
+              <>
+                <label htmlFor="url-input" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Paste text containing URLs to analyze:
+                </label>
+                <textarea
+                  id="url-input"
+                  value={urls}
+                  onChange={(e) => setUrls(e.target.value)}
+                  className="w-full h-40 p-4 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 resize-y shadow-sm transition duration-200 ease-in-out text-base placeholder-gray-400"
+                  placeholder="Paste any text here, and we'll find the URLs. For example:
 Check out this article: https://example.com/news/article-one. It's great."
-              disabled={isProcessing}
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Supports news articles, blog posts, and most public web content.
-            </p>
+                  disabled={isProcessing}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Supports news articles, blog posts, and most public web content.
+                </p>
+              </>
+            )}
           </div>
 
           {error && (
@@ -419,11 +543,11 @@ Check out this article: https://example.com/news/article-one. It's great."
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={processUrls}
-              disabled={isProcessing || !urls.trim()}
+              disabled={isProcessing || (!isSearchMode && !urls.trim()) || (isSearchMode && !searchQuery.trim())}
               className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
-              {isProcessing ? <Clock className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-              {isProcessing ? 'Processing...' : (results.length > 0 ? 'Analyze More URLs' : 'Analyze Sentiment')}
+              {isProcessing ? <Clock className="w-5 h-5 animate-spin" /> : (isSearchMode ? <Search className="w-5 h-5" /> : <Zap className="w-5 h-5" />)}
+              {isProcessing ? 'Processing...' : (results.length > 0 ? (isSearchMode ? 'Search More' : 'Analyze More URLs') : (isSearchMode ? 'Search & Analyze' : 'Analyze Sentiment'))}
             </button>
             
             {(results.length > 0 || finalReport) && (
@@ -599,6 +723,26 @@ Check out this article: https://example.com/news/article-one. It's great."
                         <Link2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <p className="text-xs text-gray-500 truncate">{result.url}</p>
                       </div>
+                      {result.publishedDate && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <p className="text-xs text-gray-400">
+                            Published: {new Date(result.publishedDate).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                      )}
+                      {result.author && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <p className="text-xs text-gray-400">
+                            By: {result.author}
+                          </p>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         {result.status === 'success' ? (
                           <>

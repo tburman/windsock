@@ -261,6 +261,90 @@ function extractTitle(html) {
   return title.replace(/\s\s+/g, ' ').trim();
 }
 
+function extractAuthor(html) {
+  const $ = cheerio.load(html);
+  let author = '';
+
+  // Try multiple approaches to find author information
+  const authorSelectors = [
+    // Meta tags
+    'meta[name="author"]',
+    'meta[property="article:author"]',
+    'meta[name="article:author"]',
+    'meta[property="og:article:author"]',
+    
+    // JSON-LD structured data
+    'script[type="application/ld+json"]',
+    
+    // Common author selectors
+    '.author', '.by-author', '.byline', '.article-author',
+    '[itemprop="author"]', '[rel="author"]',
+    '.author-name', '.writer', '.post-author',
+    '.article-byline', '.story-byline',
+    
+    // Specific patterns
+    '.meta .author', '.post-meta .author',
+    'p.byline', 'span.byline', 'div.byline'
+  ];
+
+  // Try meta tags first
+  for (const selector of authorSelectors.slice(0, 4)) {
+    const content = $(selector).attr('content');
+    if (content && content.trim().length > 2) {
+      author = content.trim();
+      break;
+    }
+  }
+
+  // Try JSON-LD structured data
+  if (!author) {
+    $('script[type="application/ld+json"]').each((i, elem) => {
+      try {
+        const jsonData = JSON.parse($(elem).html());
+        if (jsonData.author) {
+          if (typeof jsonData.author === 'string') {
+            author = jsonData.author;
+          } else if (jsonData.author.name) {
+            author = jsonData.author.name;
+          }
+        }
+        if (author) return false; // Break the loop
+      } catch (e) {
+        // Invalid JSON, continue
+      }
+    });
+  }
+
+  // Try CSS selectors for author elements
+  if (!author) {
+    for (const selector of authorSelectors.slice(5)) {
+      const element = $(selector).first();
+      if (element.length) {
+        let text = element.text().trim();
+        
+        // Clean up common prefixes
+        text = text.replace(/^(by|author|written by|published by|posted by):?\s*/i, '');
+        text = text.replace(/\s*\|.*$/, ''); // Remove everything after |
+        text = text.replace(/\s*-.*$/, ''); // Remove everything after -
+        
+        if (text.length > 2 && text.length < 100) {
+          author = text;
+          break;
+        }
+      }
+    }
+  }
+
+  // Final cleanup
+  if (author) {
+    author = author.replace(/\s\s+/g, ' ').trim();
+    // Remove common suffixes
+    author = author.replace(/,?\s*(editor|reporter|correspondent|staff writer)$/i, '');
+  }
+
+  return author || null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -291,6 +375,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       content: cachedEntry.content, 
       articleTitle: cachedEntry.articleTitle,
+      author: cachedEntry.author,
       cached: true,
       cacheAge: cacheAge,
       contentHash: cachedEntry.contentHash
@@ -303,6 +388,7 @@ export default async function handler(req, res) {
     const html = await fetchWithRetry(url)
     const content = extractContent(html, url)
     const articleTitle = extractTitle(html)
+    const author = extractAuthor(html)
     
     if (!content || content.length < 100) {
       throw new Error('Insufficient content extracted')
@@ -324,6 +410,7 @@ export default async function handler(req, res) {
     globalCache.set(url, {
       content,
       articleTitle,
+      author,
       contentHash,
       timestamp: now,
       lastAccessed: now,
@@ -337,7 +424,8 @@ export default async function handler(req, res) {
     
     res.status(200).json({ 
       content, 
-      articleTitle, 
+      articleTitle,
+      author, 
       cached: false, 
       contentHash,
       contentChanged: cachedEntry ? contentChanged : undefined

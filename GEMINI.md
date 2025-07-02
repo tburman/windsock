@@ -16,8 +16,11 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   A protected single-page React application with a beautiful and responsive user interface, optimized for mobile use.
     *   Features consistent branding with Wind icon, Windsock title with BETA indicator, and professional styling.
     *   Includes a logout button in the top right corner.
-    *   Users can paste any block of text containing URLs. The application will automatically extract all valid URLs (http/https) and process them. This allows for easy analysis of citations or documents containing multiple links.
-    *   The application processes the extracted URLs sequentially.
+    *   **Dual input modes**: Users can toggle between URL input and semantic search:
+        *   **URL Mode**: Paste any block of text containing URLs. The application will automatically extract all valid URLs (http/https) and process them.
+        *   **Search Mode**: Enter search queries to find relevant content via Exa.ai semantic search. Supports natural language queries with intelligent date constraints like "Tesla earnings today", "Bitcoin news this week", "parth jindal in june and july 2025".
+        *   **Result limit selector**: Choose between 10, 25, 50, or 100 search results when in search mode.
+    *   The application processes URLs sequentially regardless of input method.
     *   It calls the backend APIs to fetch content, analyze sentiment, and generate reports.
     *   Displays real-time progress, individual results, and a final comprehensive summary report.
 *   Includes a visual spinner overlay on the overall report section to indicate when it is being updated (not a full-screen overlay).
@@ -29,14 +32,31 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   **Error classification**: Different error types are shown with appropriate icons and explanations (🛡️ Bot Protection, 🌐 Network Issue, 📄 Page Not Found, etc.).
 *   **Smart report regeneration**: Only regenerates comprehensive reports when removing URLs with successful analyses, skipping unnecessary regeneration for error results.
 *   **Reset functionality**: Provides a "Start Fresh" button that appears when results exist, allowing users to completely clear all analysis data with confirmation dialog for safety.
+*   **Author extraction and display**: Automatically extracts article authors from content using multiple strategies (meta tags, JSON-LD, CSS selectors) and displays them on individual URL cards.
+*   **Published date display**: Shows article publication dates from Exa.ai search results on URL cards for verification of date constraints.
 *   Styled with `tailwindcss` and uses `lucide-react` for icons.
 *   Features a copyright notice in the footer.
 
 ### Backend (`pages/api/`)
 
+*   **`POST /api/search-exa`**:
+    *   **NEW**: Semantic search endpoint using Exa.ai API for content discovery.
+    *   **Intelligent date parsing**: Automatically detects and converts date constraints from natural language queries:
+        *   Relative dates: "today", "yesterday", "this week", "past 30 days"
+        *   Month/year patterns: "june 2025", "june and july 2025", "december 2024"
+        *   Specific dates: "2025-06-01" format
+    *   **Configurable result limits**: Supports 10, 25, 50, or 100 search results
+    *   **Auto search type**: Uses Exa.ai's automatic search type selection for optimal results
+    *   Returns relevant URLs with titles, published dates from search index
+    *   Handles rate limiting and quota exceeded errors gracefully with user-friendly messages
 *   **`POST /api/fetch-content`**:
     *   Fetches the HTML content of a given URL using `axios`.
-    *   Uses `cheerio` to parse the HTML and extract the main text content and the article's headline.
+    *   Uses `cheerio` to parse the HTML and extract the main text content, article headline, and author information.
+    *   **Author extraction**: Employs multiple strategies to identify article authors:
+        *   Meta tags (`<meta name="author">`, `<meta property="article:author">`)
+        *   JSON-LD structured data parsing for modern websites
+        *   CSS selectors (`.author`, `.byline`, `[itemprop="author"]`) with text cleanup
+        *   Intelligent filtering to remove prefixes ("by", "written by") and suffixes ("editor", "staff writer")
     *   Includes a retry mechanism with exponential backoff.
     *   **Global shared caching**: Implements intelligent in-memory caching shared across all users with content hash validation.
     *   **Domain-aware TTL**: Different cache expiry times based on content type (news: 2h, finance: 1h, social: 30m, blogs: 12h).
@@ -88,11 +108,13 @@ Create a `.env.local` file in the project root for local development. This file 
 
 ```
 OPENROUTER_API_KEY=your_openrouter_api_key
+EXA_API_KEY=your_exa_api_key
 LOGIN_USERNAME=your_login_username
 LOGIN_PASSWORD=your_login_password
 ```
 
 *   `OPENROUTER_API_KEY`: Your API key for the OpenRouter service.
+*   `EXA_API_KEY`: Your API key for the Exa.ai search service (required for search functionality).
 *   `LOGIN_USERNAME`: The username for accessing the dashboard (e.g., `user`).
 *   `LOGIN_PASSWORD`: The password for accessing the dashboard (e.g., `password`).
 
