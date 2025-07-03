@@ -132,6 +132,20 @@ export default function Dashboard() {
     }
   };
 
+  const handleProcessUrls = async () => {
+    // Immediately set processing state for instant feedback
+    setIsProcessing(true);
+    setError('');
+    
+    try {
+      await processUrls();
+    } catch (error) {
+      console.error('Processing failed:', error);
+      setError(`Processing failed: ${error.message}`);
+      setIsProcessing(false);
+    }
+  };
+
   const processUrls = async () => {
     let urlList;
     
@@ -139,17 +153,20 @@ export default function Dashboard() {
       if (isSearchMode) {
         if (!searchQuery.trim()) {
           setError('Please enter a search query');
+          setIsProcessing(false);
           return;
         }
         urlList = await searchUrls(searchQuery.trim());
         if (urlList.length === 0) {
           setError('No URLs found for your search query. Try a different search term.');
+          setIsProcessing(false);
           return;
         }
       } else {
         urlList = extractUrls(urls);
         if (urlList.length === 0) {
           setError('No valid URLs found in the provided text. Make sure URLs start with http:// or https://');
+          setIsProcessing(false);
           return;
         }
       }
@@ -159,8 +176,6 @@ export default function Dashboard() {
       return;
     }
 
-    setIsProcessing(true);
-    setError('');
     setCurrentProgress({ current: 0, total: urlList.length, status: 'Starting analysis...' });
 
     const newProcessedResults = [];
@@ -350,13 +365,16 @@ export default function Dashboard() {
 
   const formatOverallReport = (report) => {
     if (!report) return ''
+    const successfulResults = results.filter(r => r.status === 'success')
+    const totalResults = results.length
     let formatted = `--- ${report.headline || 'Overall Sentiment Analysis Report'} ---\n\n`
+    formatted += `URLs Processed: ${successfulResults.length} successful, ${totalResults - successfulResults.length} failed, ${totalResults} total\n`
     formatted += `Overall Sentiment: ${report.overallSentiment}\n`
     formatted += `Confidence: ${Math.round((report.confidence || 0) * 100)}%\n\n`
     formatted += `Sentiment Distribution:\n`
     for (const [sentiment, value] of Object.entries(report.sentimentDistribution || {})) {
       formatted += `  ${sentiment}: ${Math.round(value * 100)}%\n`
-    n}
+    }
     formatted += `\nCore Themes: ${report.coreThemes?.join(', ') || 'N/A'}\n\n`
     formatted += `Key Insights:\n`
     report.keyInsights?.forEach((insight, i) => {
@@ -394,7 +412,61 @@ export default function Dashboard() {
 
   const formatAllIndividualResults = (results) => {
     if (!results || results.length === 0) return ''
-    return results.map(result => formatIndividualResult(result)).join('\n\n')
+    
+    const successfulResults = results.filter(r => r.status === 'success')
+    const failedResults = results.filter(r => r.status === 'error')
+    
+    // Calculate sentiment distribution
+    const sentimentCounts = { positive: 0, negative: 0, neutral: 0 }
+    successfulResults.forEach(result => {
+      if (result.analysis?.sentiment) {
+        const sentiment = result.analysis.sentiment.toLowerCase()
+        if (sentimentCounts.hasOwnProperty(sentiment)) {
+          sentimentCounts[sentiment]++
+        }
+      }
+    })
+    
+    // Calculate average confidence
+    const confidenceValues = successfulResults
+      .filter(r => r.analysis?.confidence)
+      .map(r => r.analysis.confidence)
+    const avgConfidence = confidenceValues.length > 0 
+      ? Math.round((confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length) * 100)
+      : 0
+    
+    // Get top themes
+    const allThemes = successfulResults.flatMap(r => r.analysis?.themes || [])
+    const themeCounts = {}
+    allThemes.forEach(theme => {
+      themeCounts[theme] = (themeCounts[theme] || 0) + 1
+    })
+    const topThemes = Object.entries(themeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([theme]) => theme)
+    
+    // Build header
+    let header = '=== INDIVIDUAL URL ANALYSIS REPORT ===\n'
+    header += `Generated: ${new Date().toLocaleString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}\n\n`
+    header += 'Summary Stats:\n'
+    header += `- URLs Processed: ${successfulResults.length} successful, ${failedResults.length} failed, ${results.length} total\n`
+    header += `- Sentiment Distribution: ${sentimentCounts.positive} positive, ${sentimentCounts.negative} negative, ${sentimentCounts.neutral} neutral\n`
+    if (avgConfidence > 0) {
+      header += `- Average Confidence: ${avgConfidence}%\n`
+    }
+    if (topThemes.length > 0) {
+      header += `- Top Themes: ${topThemes.join(', ')}\n`
+    }
+    header += '\n=== INDIVIDUAL URL REPORTS ===\n\n'
+    
+    return header + results.map(result => formatIndividualResult(result)).join('\n\n')
   }
 
   const handleLogout = async () => {
@@ -444,7 +516,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors duration-150 shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 active:bg-red-700 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
@@ -456,10 +528,10 @@ export default function Dashboard() {
             <div className="flex items-center gap-4 mb-4">
               <button
                 onClick={() => setIsSearchMode(false)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-150 ${
                   !isSearchMode 
-                    ? 'bg-blue-600 text-white shadow-md' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white shadow-md active:bg-blue-700 active:scale-95' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300 active:scale-95'
                 }`}
               >
                 <Link2 className="w-4 h-4" />
@@ -467,10 +539,10 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => setIsSearchMode(true)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-150 ${
                   isSearchMode 
-                    ? 'bg-blue-600 text-white shadow-md' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white shadow-md active:bg-blue-700 active:scale-95' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300 active:scale-95'
                 }`}
               >
                 <Search className="w-4 h-4" />
@@ -542,9 +614,9 @@ Check out this article: https://example.com/news/article-one. It's great."
 
           <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={processUrls}
+              onClick={handleProcessUrls}
               disabled={isProcessing || (!isSearchMode && !urls.trim()) || (isSearchMode && !searchQuery.trim())}
-              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-xl transition-all duration-150 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:shadow-sm active:translate-y-0"
             >
               {isProcessing ? <Clock className="w-5 h-5 animate-spin" /> : (isSearchMode ? <Search className="w-5 h-5" /> : <Zap className="w-5 h-5" />)}
               {isProcessing ? 'Processing...' : (results.length > 0 ? (isSearchMode ? 'Search More' : 'Analyze More URLs') : (isSearchMode ? 'Search & Analyze' : 'Analyze Sentiment'))}
@@ -554,7 +626,7 @@ Check out this article: https://example.com/news/article-one. It's great."
               <button
                 onClick={handleReset}
                 disabled={isProcessing}
-                className="flex-1 sm:flex-none bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                className="flex-1 sm:flex-none bg-gray-500 hover:bg-gray-600 active:bg-gray-700 active:scale-95 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-xl transition-all duration-150 ease-in-out flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:shadow-sm"
               >
                 <RotateCcw className="w-5 h-5" />
                 Start Fresh
@@ -605,7 +677,7 @@ Check out this article: https://example.com/news/article-one. It's great."
               </div>
               <button
                 onClick={() => handleCopy(formatOverallReport(finalReport), 'Overall report copied!')}
-                className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-150 shadow-sm"
+                className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 active:bg-gray-300 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
               >
                 <Copy className="w-4 h-4" />
                 Copy
@@ -614,6 +686,24 @@ Check out this article: https://example.com/news/article-one. It's great."
             
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-6">
+                <div>
+                  <h3 className="font-semibold mb-3 text-gray-800">URLs Processed</h3>
+                  <div className="text-sm text-gray-600 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span>Successful:</span>
+                      <span className="font-medium text-green-600">{results.filter(r => r.status === 'success').length}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Failed:</span>
+                      <span className="font-medium text-red-600">{results.filter(r => r.status === 'error').length}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+                      <span className="font-medium">Total:</span>
+                      <span className="font-bold">{results.length}</span>
+                    </div>
+                  </div>
+                </div>
+                
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-800">Overall Sentiment</h3>
                   <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-medium border ${getSentimentColor(finalReport.overallSentiment)}`}>
@@ -704,7 +794,7 @@ Check out this article: https://example.com/news/article-one. It's great."
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Individual URL Analysis</h2>
             <button
               onClick={() => handleCopy(formatAllIndividualResults(results), 'All individual reports copied!')}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors duration-150 shadow-sm mb-6"
+              className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 active:bg-gray-300 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs mb-6"
             >
               <Copy className="w-4 h-4" />
               Copy
@@ -778,7 +868,7 @@ Check out this article: https://example.com/news/article-one. It's great."
                           e.stopPropagation(); // Prevent accordion from toggling
                           handleCopy(formatIndividualResult(result), 'Individual report copied!');
                         }}
-                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium hover:bg-gray-200 transition-colors duration-150 shadow-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium hover:bg-gray-200 active:bg-gray-300 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
                       >
                         <Copy className="w-3 h-3" />
                         Copy
@@ -788,7 +878,7 @@ Check out this article: https://example.com/news/article-one. It's great."
                           e.stopPropagation();
                           handleRemoveResult(index);
                         }}
-                        className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium hover:bg-red-200 transition-colors duration-150 shadow-sm"
+                        className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium hover:bg-red-200 active:bg-red-300 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
                       >
                         <Trash2 className="w-3 h-3" />
                         Remove

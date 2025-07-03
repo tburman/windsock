@@ -135,6 +135,14 @@ Open [http://localhost:3000](http://localhost:3000) to see the application.
 - **Multiple redirects**: Handles complex redirect chains
 - **Content parsing**: Semantic HTML parsing for better text extraction
 
+### Enhanced User Experience
+- **Instant Button Feedback**: All buttons provide immediate tactile feedback with click animations and scale effects
+- **Immediate Processing State**: Search and analysis buttons instantly show processing state to prevent double-clicks
+- **Comprehensive Copy Functions**: Copy overall reports, individual reports, or bulk individual reports with enhanced headers
+- **Statistical Headers**: Individual report copies include summary statistics (URL counts, sentiment distribution, average confidence, top themes)
+- **URL Processing Stats**: Reports display detailed breakdowns of successful vs failed URL processing
+- **Visual State Management**: Clear loading states, progress indicators, and error classifications
+
 ## Known Limitations
 
 Some websites actively block automated access:
