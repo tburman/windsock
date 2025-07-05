@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchMode, setIsSearchMode] = useState(false)
   const [searchResultLimit, setSearchResultLimit] = useState(25)
+  const [isBatchMode, setIsBatchMode] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [results, setResults] = useState([])
   const [currentProgress, setCurrentProgress] = useState({ current: 0, total: 0, status: '' })
@@ -180,6 +181,16 @@ export default function Dashboard() {
 
     const newProcessedResults = [];
 
+    if (isBatchMode) {
+      // Batch processing mode - faster but less granular progress
+      await processBatch(urlList, newProcessedResults);
+    } else {
+      // Sequential processing mode - slower but with detailed progress
+      await processSequential(urlList, newProcessedResults);
+    }
+  };
+
+  const processSequential = async (urlList, newProcessedResults) => {
     for (let i = 0; i < urlList.length; i++) {
       // Handle both string URLs (manual input) and objects (from Exa search)
       const urlItem = urlList[i];
@@ -199,7 +210,7 @@ export default function Dashboard() {
           const errorData = await fetchResponse.json().catch(() => ({}))
           throw new Error(`Fetch failed: ${fetchResponse.status} ${fetchResponse.statusText}. ${errorData.error || ''}`);
         }
-        const { content, articleTitle, author } = await fetchResponse.json();
+        const { content, articleTitle, author, publishedDate } = await fetchResponse.json();
 
         setCurrentProgress({ current: i + 1, total: urlList.length, status: `[2/3] Analyzing sentiment for ${url.substring(0, 50)}...` });
         const analysisResponse = await fetch('/api/analyze-sentiment', {
@@ -259,6 +270,128 @@ export default function Dashboard() {
       }
     }
 
+    // Complete processing for sequential mode
+    await completeProcessing(newProcessedResults);
+  };
+
+  const processBatch = async (urlList, newProcessedResults) => {
+    try {
+      setCurrentProgress({ current: 0, total: urlList.length, status: 'Fetching content for all URLs...' });
+      
+      // Prepare URLs for batch fetching
+      const urlsToFetch = urlList.map(urlItem => typeof urlItem === 'string' ? urlItem : urlItem.url);
+      
+      // Batch fetch content
+      const fetchResponse = await fetch('/api/fetch-content-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: urlsToFetch, concurrency: 5 })
+      });
+
+      if (!fetchResponse.ok) {
+        throw new Error(`Batch fetch failed: ${fetchResponse.status}`);
+      }
+
+      const { results: fetchResults } = await fetchResponse.json();
+      
+      setCurrentProgress({ current: urlList.length, total: urlList.length, status: 'Analyzing sentiment for all URLs...' });
+      
+      // Prepare content for batch sentiment analysis
+      const contentToAnalyze = fetchResults
+        .filter(result => result.status === 'success' && result.content)
+        .map(result => ({ content: result.content, url: result.url }));
+
+      if (contentToAnalyze.length > 0) {
+        const analysisResponse = await fetch('/api/analyze-sentiment-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: contentToAnalyze, concurrency: 3 })
+        });
+
+        if (!analysisResponse.ok) {
+          throw new Error(`Batch analysis failed: ${analysisResponse.status}`);
+        }
+
+        const { results: analysisResults } = await analysisResponse.json();
+
+        // Combine fetch and analysis results
+        for (const fetchResult of fetchResults) {
+          const analysisResult = analysisResults.find(a => a.url === fetchResult.url);
+          
+          if (fetchResult.status === 'success' && analysisResult && analysisResult.status === 'success') {
+            newProcessedResults.push({
+              url: fetchResult.url,
+              content: fetchResult.content.substring(0, 300) + '...',
+              analysis: analysisResult.analysis,
+              status: 'success',
+              timestamp: new Date().toISOString(),
+              articleTitle: fetchResult.articleTitle,
+              author: fetchResult.author,
+              publishedDate: fetchResult.publishedDate
+            });
+          } else {
+            // Handle errors from either fetch or analysis
+            const errorMessage = fetchResult.error || analysisResult?.error || 'Processing failed';
+            const errorType = fetchResult.errorType || analysisResult?.errorType || 'general';
+            
+            newProcessedResults.push({
+              url: fetchResult.url,
+              content: '',
+              analysis: null,
+              status: 'error',
+              error: errorMessage,
+              errorType: errorType,
+              timestamp: new Date().toISOString(),
+              articleTitle: fetchResult.articleTitle || '',
+              author: fetchResult.author || null,
+              publishedDate: fetchResult.publishedDate || null
+            });
+          }
+        }
+      } else {
+        // All URLs failed to fetch content
+        for (const fetchResult of fetchResults) {
+          newProcessedResults.push({
+            url: fetchResult.url,
+            content: '',
+            analysis: null,
+            status: 'error',
+            error: fetchResult.error || 'Failed to fetch content',
+            errorType: fetchResult.errorType || 'general',
+            timestamp: new Date().toISOString(),
+            articleTitle: '',
+            author: null,
+            publishedDate: null
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Batch processing failed:', error);
+      // If batch processing fails, fall back to individual errors for each URL
+      for (let i = 0; i < urlList.length; i++) {
+        const urlItem = urlList[i];
+        const url = typeof urlItem === 'string' ? urlItem : urlItem.url;
+        
+        newProcessedResults.push({
+          url,
+          content: '',
+          analysis: null,
+          status: 'error',
+          error: `Batch processing failed: ${error.message}`,
+          errorType: 'general',
+          timestamp: new Date().toISOString(),
+          articleTitle: '',
+          author: null,
+          publishedDate: null
+        });
+      }
+    }
+
+    // Complete processing for batch mode
+    await completeProcessing(newProcessedResults);
+  };
+
+  const completeProcessing = async (newProcessedResults) => {
     const allResults = [...results, ...newProcessedResults];
     setResults(allResults);
 
@@ -550,6 +683,45 @@ export default function Dashboard() {
               </button>
             </div>
 
+            {/* Processing Mode Toggle */}
+            <div className="flex items-center gap-4 mb-4">
+              <span className="text-sm font-medium text-gray-700">Processing Mode:</span>
+              <button
+                onClick={() => setIsBatchMode(false)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  !isBatchMode 
+                    ? 'bg-green-600 text-white shadow-md active:bg-green-700 active:scale-95' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300 active:scale-95'
+                }`}
+                disabled={isProcessing}
+              >
+                <Clock className="w-4 h-4" />
+                Sequential
+              </button>
+              <button
+                onClick={() => setIsBatchMode(true)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  isBatchMode 
+                    ? 'bg-purple-600 text-white shadow-md active:bg-purple-700 active:scale-95' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300 active:scale-95'
+                }`}
+                disabled={isProcessing}
+              >
+                <Zap className="w-4 h-4" />
+                Batch
+              </button>
+            </div>
+            
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs text-gray-600">
+                {isBatchMode ? (
+                  <span><strong>Batch Mode:</strong> Processes all URLs simultaneously for faster results, but with less detailed progress updates.</span>
+                ) : (
+                  <span><strong>Sequential Mode:</strong> Processes URLs one by one with detailed progress updates, but takes longer for large lists.</span>
+                )}
+              </p>
+            </div>
+
             {isSearchMode ? (
               <>
                 <label htmlFor="search-input" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -811,7 +983,15 @@ Check out this article: https://example.com/news/article-one. It's great."
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <Link2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                        <p className="text-xs text-gray-500 truncate">{result.url}</p>
+                        <a 
+                          href={result.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors duration-150"
+                        >
+                          {result.url}
+                        </a>
                       </div>
                       {result.publishedDate && (
                         <div className="flex items-center gap-2 mb-1">

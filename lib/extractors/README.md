@@ -195,6 +195,15 @@ All extractors now include **standardized published date extraction** and return
   - Includes recommendations for browser automation tools (Puppeteer/Playwright)
   - Handles modern SPA (Single Page Application) architectures gracefully
   - Limited published date extraction from available metadata
+  
+- **HindustanTimes.com**: Comprehensive extraction with advanced JSON-LD processing
+  - Primary extraction from JSON-LD NewsArticle structured data with robust author array handling
+  - Specialized content selectors for HindustanTimes article structure (`.storyDetails`, `.story-content`)
+  - Enhanced author extraction from multiple sources: JSON-LD, analytics data, dataLayer
+  - Handles complex author arrays and objects gracefully with fallback mechanisms
+  - Published date extraction from JSON-LD with proper Indian timezone support
+  - Content filtering to remove promotional and navigation elements
+  - Supports all HindustanTimes sections with high reliability
 
 ## Debugging
 

@@ -10,7 +10,8 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 - 📅 **Advanced Date Parsing**: Understands "today", "this week", "june and july 2025", and specific date formats
 - 👤 **Author Extraction**: Automatically identifies and displays article authors using multiple detection strategies
 - 📰 **Publication Dates**: Shows article publication dates from search results and extracted content for verification
-- 🎯 **Site-Specific Extractors**: Specialized content extraction for major automotive and financial sites with enhanced metadata
+- 🎯 **Site-Specific Extractors**: Specialized content extraction for major automotive, financial, and news sites with enhanced metadata
+- ⚡ **Batch Processing**: Toggle between sequential processing (detailed progress) and batch processing (faster results)
 - 🤖 **AI-Powered Analysis**: Uses Google's Gemini Flash Lite via OpenRouter for fast, accurate sentiment analysis
 - 📊 **Comprehensive Reporting**: Get overall sentiment trends, key themes, and "wind direction" insights
 - ⚡ **Smart Caching**: Global shared cache with content hash validation for optimal performance
@@ -48,12 +49,14 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 
 **URL Mode:**
 - Paste URLs (one per line) into the text area
+- Choose processing mode: Sequential (detailed progress) or Batch (faster)
 - Click "Analyze Sentiment"
 
 **Search Mode:**
 - Toggle to Search mode  
 - Enter queries like "Tesla earnings today", "Bitcoin news this week", or "parth jindal in june and july 2025"
 - Choose number of results (10, 25, 50, or 100)
+- Choose processing mode: Sequential or Batch
 - Click "Search & Analyze"
 
 Watch real-time progress as content is discovered and analyzed, then get comprehensive sentiment analysis and reporting with author attribution and publication dates.
@@ -83,7 +86,7 @@ For 100 URLs using Gemini Flash Lite:
 - **Backend**: Next.js API routes with global shared caching
 - **Content Discovery**: Exa.ai semantic search with date constraint detection
 - **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion and site-specific extractors
-- **Content Extraction**: Modular extractor system for automotive sites (CarDekho, CarAndBike, AutocarIndia, EvoIndia) and financial sites (ZeeBiz, MoneyControl, MSN)
+- **Content Extraction**: Modular extractor system for automotive sites (CarDekho, CarAndBike, AutocarIndia, EvoIndia), financial sites (ZeeBiz, MoneyControl, MSN), and news sites (HindustanTimes)
 - **AI**: OpenRouter API + Google Gemini models (Flash Lite & Flash 1.5)
 - **Authentication**: Cookie-based sessions with middleware protection
 - **Deployment**: Vercel
