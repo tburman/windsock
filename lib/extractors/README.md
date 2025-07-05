@@ -125,6 +125,8 @@ const content = $('.custom-article-selector').text()
 4. **Clean HTML content** using `this.cleanHtmlContent()` when needed
 5. **Handle edge cases** gracefully
 6. **Test with multiple URLs** from the target site
+7. **Detect JavaScript dependencies** and provide appropriate feedback
+8. **Consider browser automation** for SPA and JavaScript-heavy sites
 
 ## Testing
 
@@ -159,6 +161,12 @@ curl -X POST http://localhost:3000/api/fetch-content \
   - MoneyControl-specific DOM selectors (`.article_body`, `.content_wrapper`, `.author-name`)
   - Comprehensive author extraction from multiple JSON-LD patterns and DOM elements
   - Supports business news, company analysis, and financial content sections
+- **MSN.com**: Limited extraction with JavaScript dependency detection
+  - Detects JavaScript-heavy pages that require browser automation
+  - Attempts extraction from pre-rendered content (JSON-LD, meta tags)
+  - Provides clear feedback when content requires JavaScript execution
+  - Includes recommendations for browser automation tools (Puppeteer/Playwright)
+  - Handles modern SPA (Single Page Application) architectures gracefully
 
 ## Debugging
 
