@@ -6,7 +6,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { query, numResults = 100 } = req.body
+  const { 
+    query, 
+    numResults = 100,
+    includeDomains = [],
+    excludeDomains = [],
+    searchType = 'auto' // 'auto', 'neural', 'keyword'
+  } = req.body
 
   if (!query) {
     return res.status(400).json({ error: 'Search query is required' })
@@ -19,14 +25,29 @@ export default async function handler(req, res) {
   try {
     const exa = new Exa(process.env.EXA_API_KEY)
     
+    // Preprocess and optimize query for better results
+    const optimizedQuery = preprocessQuery(query)
+    
     // Detect date constraints in the query
     const dateConstraints = extractDateConstraints(query)
     
-    // Build search parameters using ONLY documented parameters
+    // Build search parameters with all available options
     const searchParams = {
       numResults: Math.min(numResults, 100),
       ...dateConstraints
-      // Removed: useAutoprompt, type, category - these don't exist in the docs
+    }
+    
+    // Add domain filtering if provided
+    if (includeDomains.length > 0) {
+      searchParams.includeDomains = includeDomains
+    }
+    if (excludeDomains.length > 0) {
+      searchParams.excludeDomains = excludeDomains
+    }
+    
+    // Add search type if not auto
+    if (searchType !== 'auto') {
+      searchParams.type = searchType
     }
     
     console.log('Exa.ai search with correct parameters:', {
@@ -35,8 +56,13 @@ export default async function handler(req, res) {
       dateConstraints
     })
     
-    // Use basic search (not searchAndContents since we just need URLs)
-    const results = await exa.search(query, searchParams)
+    // Use searchAndContents for better result quality with highlights and summaries
+    const results = await exa.searchAndContents(optimizedQuery, {
+      ...searchParams,
+      text: { maxCharacters: 1000 }, // Get text snippets for better result ranking
+      highlights: true,
+      summary: true
+    })
 
     console.log('Exa.ai search results:', {
       query,
@@ -50,13 +76,20 @@ export default async function handler(req, res) {
       }))
     })
     
-    // Extract URLs and titles - only use properties we know exist
-    const urls = results.results.map(result => ({
-      url: result.url,
-      title: result.title,
-      publishedDate: result.publishedDate
-      // Removed id, author - we'll see what actually exists in the logs
-    }))
+    // Extract URLs and enhanced metadata for better result quality
+    const urls = results.results
+      .map(result => ({
+        url: result.url,
+        title: result.title,
+        publishedDate: result.publishedDate,
+        summary: result.summary,
+        highlights: result.highlights,
+        text: result.text,
+        score: result.score || 0, // Relevance score if available
+        qualityScore: calculateQualityScore(result)
+      }))
+      .filter(result => result.qualityScore > 0.3) // Filter out low-quality results
+      .sort((a, b) => (b.qualityScore * (b.score || 1)) - (a.qualityScore * (a.score || 1))) // Sort by combined quality and relevance
 
     // Log search analytics (async, don't wait for completion)
     logSearchData({
@@ -168,4 +201,81 @@ function extractDateConstraints(query) {
   }
   
   return constraints
+}
+
+function preprocessQuery(query) {
+  // Clean and optimize the query for better Exa results
+  let optimized = query.trim()
+  
+  // Remove redundant words that don't add semantic value
+  const stopWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
+  const words = optimized.split(' ')
+  
+  // Don't remove stop words if query is very short
+  if (words.length > 3) {
+    optimized = words
+      .filter(word => !stopWords.includes(word.toLowerCase()) || word.toLowerCase() === words[0].toLowerCase())
+      .join(' ')
+  }
+  
+  // Add context for news/article searches if not already specified
+  if (!optimized.toLowerCase().includes('news') && 
+      !optimized.toLowerCase().includes('article') && 
+      !optimized.toLowerCase().includes('report') &&
+      optimized.length < 50) {
+    optimized = `${optimized} news articles analysis`
+  }
+  
+  // Ensure minimum query length for semantic search
+  if (optimized.length < 10) {
+    optimized = `latest news about ${optimized}`
+  }
+  
+  return optimized
+}
+
+function calculateQualityScore(result) {
+  let score = 0.5 // Base score
+  
+  // Check for title quality
+  if (result.title && result.title.length > 10 && result.title.length < 200) {
+    score += 0.2
+  }
+  
+  // Check for summary/text content
+  if (result.summary && result.summary.length > 50) {
+    score += 0.2
+  }
+  if (result.text && result.text.length > 100) {
+    score += 0.1
+  }
+  
+  // Check for highlights (indicates relevant content)
+  if (result.highlights && result.highlights.length > 0) {
+    score += 0.2
+  }
+  
+  // Check for publication date (recent content gets slight boost)
+  if (result.publishedDate) {
+    const pubDate = new Date(result.publishedDate)
+    const now = new Date()
+    const daysAgo = (now - pubDate) / (1000 * 60 * 60 * 24)
+    
+    if (daysAgo < 30) score += 0.1 // Recent content
+    else if (daysAgo < 365) score += 0.05 // Somewhat recent
+  }
+  
+  // Penalize URLs that look like low-quality domains
+  const url = result.url?.toLowerCase() || ''
+  if (url.includes('spam') || url.includes('ad') || url.includes('popup')) {
+    score -= 0.3
+  }
+  
+  // Boost trusted news domains
+  const trustedDomains = ['reuters.com', 'ap.org', 'bbc.com', 'cnn.com', 'nytimes.com', 'washingtonpost.com', 'wsj.com']
+  if (trustedDomains.some(domain => url.includes(domain))) {
+    score += 0.2
+  }
+  
+  return Math.max(0, Math.min(1, score)) // Clamp between 0 and 1
 }

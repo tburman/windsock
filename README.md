@@ -5,7 +5,7 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 ## Features
 
 - 🌐 **Dual Input Modes**: Choose between URL input or semantic search to find relevant content
-- 🔍 **Smart Search**: Use Exa.ai to discover relevant URLs with natural language queries and intelligent date constraints
+- 🔍 **Optimized Search**: Enhanced Exa.ai integration with semantic search, quality filtering, and intelligent result ranking
 - 📅 **Advanced Date Parsing**: Understands "today", "this week", "june and july 2025", and specific date formats
 - 👤 **Author Extraction**: Automatically identifies and displays article authors using multiple detection strategies
 - 📰 **Publication Dates**: Shows article publication dates from search results and extracted content for verification
@@ -75,7 +75,7 @@ For 100 URLs using Gemini Flash Lite:
 ## API Endpoints
 
 ### Core Analysis
-- `POST /api/search-exa` - Semantic search using Exa.ai with intelligent date parsing and configurable result limits
+- `POST /api/search-exa` - **Optimized semantic search** using Exa.ai with query preprocessing, quality scoring, domain filtering, and intelligent result ranking
 - `POST /api/fetch-content` - Scrapes content from URLs with site-specific extractors, global shared caching, bot detection handling, and comprehensive metadata extraction (author, published date)
 - `POST /api/fetch-content-batch` - Batch processing for multiple URLs with the same advanced extraction capabilities  
 - `POST /api/analyze-sentiment` - Analyzes sentiment using OpenRouter
@@ -99,7 +99,7 @@ For 100 URLs using Gemini Flash Lite:
 - **Frontend**: Next.js 15, React, Tailwind CSS
 - **Backend**: Next.js API routes with global shared caching
 - **Database**: SQLite (development) / PostgreSQL (production)
-- **Content Discovery**: Exa.ai semantic search with date constraint detection
+- **Content Discovery**: Exa.ai semantic search with query optimization, quality filtering, and result ranking
 - **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion and site-specific extractors
 - **Content Extraction**: Modular extractor system for automotive sites (CarDekho, CarAndBike, AutocarIndia, EvoIndia), financial sites (ZeeBiz, MoneyControl, MSN), and news sites (HindustanTimes)
 - **AI**: OpenRouter API + Google Gemini models (Flash Lite & Flash 1.5)
@@ -139,6 +139,49 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) to see the application.
 
 For detailed analytics setup, see [ANALYTICS_SETUP.md](ANALYTICS_SETUP.md)
+
+## Exa Search Optimizations (Updated 2025-01-05)
+
+The search functionality has been significantly enhanced to provide better quality results:
+
+### Enhanced Search Method
+- **Uses `searchAndContents()`** instead of basic search for richer metadata
+- **Text snippets** (1000 characters) for better context
+- **Highlights** show relevant content sections  
+- **Summaries** provide quick article overviews
+
+### Query Preprocessing
+- **Automatic optimization** removes unnecessary words and adds context
+- **News context** automatically added for better article discovery
+- **Minimum length** ensures semantic search effectiveness
+- Example: "AI" becomes "latest news about AI news articles analysis"
+
+### Quality Scoring & Filtering
+Each result gets scored (0-1) based on:
+- **Content richness** (title quality, summary length, highlights)
+- **Publication recency** (recent articles get boost)
+- **Domain reputation** (trusted news sources prioritized)
+- **Spam detection** (low-quality domains filtered out)
+
+Results below 0.3 quality score are filtered out automatically.
+
+### Advanced Parameters
+The search API supports additional parameters:
+```javascript
+{
+  "query": "search term",
+  "numResults": 25,
+  "includeDomains": ["reuters.com", "nytimes.com"],  // Optional
+  "excludeDomains": ["spam.com"],                    // Optional  
+  "searchType": "auto"                              // auto/neural/keyword
+}
+```
+
+### Trusted Domain Boosting
+Results from reputable sources get quality score increases:
+- Reuters, AP, BBC, CNN, New York Times, Washington Post, Wall Street Journal
+
+These optimizations provide search result quality comparable to the Exa MCP while maintaining cost efficiency.
 
 ## Performance & Error Handling
 
