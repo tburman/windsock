@@ -4,3 +4,9 @@ bfg-1.15.0.jar
 .git.bfg-report/
 .next/
 .vercel
+
+# SQLite databases
+/data/
+*.db
+*.sqlite
+*.sqlite3

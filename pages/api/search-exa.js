@@ -1,4 +1,5 @@
 import Exa from 'exa-js'
+import { logSearchData } from '../../lib/analytics'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -56,6 +57,16 @@ export default async function handler(req, res) {
       publishedDate: result.publishedDate
       // Removed id, author - we'll see what actually exists in the logs
     }))
+
+    // Log search analytics (async, don't wait for completion)
+    logSearchData({
+      queryType: 'semantic_search',
+      queryLength: query.length,
+      resultsCount: results.results.length,
+      successfulScrapes: results.results.length, // All results are successful at this point
+      avgSentiment: 0, // No sentiment analysis yet
+      timestamp: new Date()
+    }).catch(err => console.error('Search analytics logging failed:', err));
 
     res.status(200).json({
       success: true,

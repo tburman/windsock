@@ -1,5 +1,6 @@
 // ===== pages/api/analyze-sentiment.js =====
 import axios from 'axios'
+import { logAnalysisData } from '../../lib/analytics'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -71,6 +72,18 @@ Content: ${JSON.stringify(content.substring(0, 4000))}`
         themes: ['parsing_error'],
         emotionalIntensity: 'low'
       }
+    }
+    
+    // Log analytics data (async, don't wait for completion)
+    if (url && analysis.sentiment) {
+      logAnalysisData({
+        url,
+        author: req.body.author, // passed from frontend if available
+        content: content.substring(0, 1000), // truncated for privacy
+        sentiment: analysis.sentiment === 'positive' ? 0.5 : analysis.sentiment === 'negative' ? -0.5 : 0,
+        analysisContent: JSON.stringify(analysis),
+        timestamp: new Date()
+      }).catch(err => console.error('Analytics logging failed:', err));
     }
     
     res.status(200).json(analysis)

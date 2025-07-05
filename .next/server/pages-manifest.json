@@ -1,11 +1,5 @@
 {
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
-  "/_document": "pages/_document.js",
-  "/dashboard": "pages/dashboard.js",
-  "/api/search-exa": "pages/api/search-exa.js",
-  "/api/fetch-content": "pages/api/fetch-content.js",
-  "/api/analyze-sentiment": "pages/api/analyze-sentiment.js",
-  "/api/generate-headline": "pages/api/generate-headline.js",
-  "/api/generate-report": "pages/api/generate-report.js"
+  "/_document": "pages/_document.js"
 }

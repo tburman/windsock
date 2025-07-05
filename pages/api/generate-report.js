@@ -1,5 +1,6 @@
 // ===== pages/api/generate-report.js =====
 import axios from 'axios'
+import { logBatchAnalysis } from '../../lib/analytics'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -91,6 +92,20 @@ Analysis data: ${JSON.stringify(analysisData, null, 2)}`
         confidence: 0.7
       }
     }
+    
+    // Log batch analysis data (async, don't wait for completion)
+    const analysisForLogging = results.map(r => ({
+      url: r.url,
+      author: r.author,
+      content: r.content ? r.content.substring(0, 1000) : '',
+      sentiment: r.analysis.sentiment === 'positive' ? 0.5 : r.analysis.sentiment === 'negative' ? -0.5 : 0,
+      analysisContent: JSON.stringify(r.analysis),
+      timestamp: new Date()
+    }));
+    
+    logBatchAnalysis(analysisForLogging).catch(err => 
+      console.error('Batch analytics logging failed:', err)
+    );
     
     res.status(200).json(report)
   } catch (error) {

@@ -1,5 +1,4 @@
-// ===== README.md =====
-# Windsock (BETA)
+# Windsock - AI-Powered Sentiment Analysis Tool
 
 A Next.js web application that analyzes sentiment across multiple URLs to show you which way the wind is blowing.
 
@@ -14,6 +13,7 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 - ⚡ **Batch Processing**: Toggle between sequential processing (detailed progress) and batch processing (faster results)
 - 🤖 **AI-Powered Analysis**: Uses Google's Gemini Flash Lite via OpenRouter for fast, accurate sentiment analysis
 - 📊 **Comprehensive Reporting**: Get overall sentiment trends, key themes, and "wind direction" insights
+- 📈 **Community Analytics**: Privacy-focused analytics system tracking domain trends, author insights, and content themes
 - ⚡ **Smart Caching**: Global shared cache with content hash validation for optimal performance
 - 🛡️ **Graceful Error Handling**: Handles bot detection and site blocks with user-friendly error messages
 - 🔄 **Reset Functionality**: Start fresh with a complete analysis reset at any time
@@ -39,11 +39,15 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 1. Create a new GitHub repository
 2. Upload all the files from this project
 3. Connect your GitHub repo to Vercel
-4. Add your API keys as environment variables:
+4. Set up Supabase database (for analytics):
+   - Create project at [Supabase.com](https://supabase.com)
+   - Run SQL schema in SQL Editor (see [ANALYTICS_SETUP.md](ANALYTICS_SETUP.md))
+5. Add your environment variables in Vercel:
    - `OPENROUTER_API_KEY`: Your OpenRouter API key
    - `EXA_API_KEY`: Your Exa.ai API key
    - `LOGIN_USERNAME`: Your dashboard username
    - `LOGIN_PASSWORD`: Your dashboard password
+   - `POSTGRES_URL`: Your Supabase connection string (for analytics)
 
 ### 3. Start Analyzing
 
@@ -70,12 +74,22 @@ For 100 URLs using Gemini Flash Lite:
 
 ## API Endpoints
 
-- `POST /api/search-exa` - **NEW**: Semantic search using Exa.ai with intelligent date parsing and configurable result limits
+### Core Analysis
+- `POST /api/search-exa` - Semantic search using Exa.ai with intelligent date parsing and configurable result limits
 - `POST /api/fetch-content` - Scrapes content from URLs with site-specific extractors, global shared caching, bot detection handling, and comprehensive metadata extraction (author, published date)
 - `POST /api/fetch-content-batch` - Batch processing for multiple URLs with the same advanced extraction capabilities  
 - `POST /api/analyze-sentiment` - Analyzes sentiment using OpenRouter
 - `POST /api/generate-report` - Creates comprehensive summary report
 - `POST /api/generate-headline` - Generates dynamic report headlines
+
+### Analytics (NEW)
+- `GET /api/analytics/unified?endpoint=overview` - Community analytics overview
+- `GET /api/analytics/unified?endpoint=top-authors` - Top authors by time period
+- `GET /api/analytics/unified?endpoint=top-domains` - Domain analysis patterns
+- `GET /api/analytics/unified?endpoint=content-themes` - Trending content themes
+- `GET /api/analytics/unified?endpoint=sentiment-trends` - Sentiment trends over time
+
+### Authentication
 - `POST /api/login` - User authentication
 - `POST /api/logout` - Session termination
 - `GET /api/user` - Authentication status check
@@ -84,12 +98,14 @@ For 100 URLs using Gemini Flash Lite:
 
 - **Frontend**: Next.js 15, React, Tailwind CSS
 - **Backend**: Next.js API routes with global shared caching
+- **Database**: SQLite (development) / PostgreSQL (production)
 - **Content Discovery**: Exa.ai semantic search with date constraint detection
 - **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion and site-specific extractors
 - **Content Extraction**: Modular extractor system for automotive sites (CarDekho, CarAndBike, AutocarIndia, EvoIndia), financial sites (ZeeBiz, MoneyControl, MSN), and news sites (HindustanTimes)
 - **AI**: OpenRouter API + Google Gemini models (Flash Lite & Flash 1.5)
+- **Analytics**: Privacy-focused analytics with automatic environment detection
 - **Authentication**: Cookie-based sessions with middleware protection
-- **Deployment**: Vercel
+- **Deployment**: Vercel + Supabase
 
 ## Environment Variables
 
@@ -100,6 +116,9 @@ OPENROUTER_API_KEY=your_openrouter_api_key
 EXA_API_KEY=your_exa_api_key
 LOGIN_USERNAME=your_username
 LOGIN_PASSWORD=your_password
+
+# Optional: PostgreSQL for production analytics
+POSTGRES_URL=your_supabase_connection_string
 ```
 
 **Required for deployment:**
@@ -107,15 +126,19 @@ LOGIN_PASSWORD=your_password
 - `EXA_API_KEY`: Your API key from Exa.ai (required for search functionality)
 - `LOGIN_USERNAME`: Dashboard access username
 - `LOGIN_PASSWORD`: Dashboard access password
+- `POSTGRES_URL`: Database connection for analytics (optional, uses SQLite fallback)
 
 ## Development
 
 ```bash
 npm install
+npm run init-analytics  # Initialize analytics database
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the application.
+
+For detailed analytics setup, see [ANALYTICS_SETUP.md](ANALYTICS_SETUP.md)
 
 ## Performance & Error Handling
 

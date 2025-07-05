@@ -32,8 +32,18 @@ The application consists of a frontend, several backend API endpoints, and an au
 *   **Error classification**: Different error types are shown with appropriate icons and explanations (🛡️ Bot Protection, 🌐 Network Issue, 📄 Page Not Found, etc.).
 *   **Smart report regeneration**: Only regenerates comprehensive reports when removing URLs with successful analyses, skipping unnecessary regeneration for error results.
 *   **Reset functionality**: Provides a "Start Fresh" button that appears when results exist, allowing users to completely clear all analysis data with confirmation dialog for safety.
-*   **Author extraction and display**: Automatically extracts article authors from content using multiple strategies (meta tags, JSON-LD, CSS selectors) and displays them on individual URL cards.
+*   **Author and Publication Date Extraction**: Employs multiple strategies to identify article authors and publication dates:
+        *   Meta tags (`<meta name="author">`, `<meta property="article:author">`, `<meta property="article:published_time">`, etc.)
+        *   JSON-LD structured data parsing for modern websites
+        *   CSS selectors (`.author`, `.byline`, `[itemprop="author"]`, `time[datetime]`, etc.) with text cleanup
+        *   Intelligent filtering to remove prefixes ("by", "written by") and suffixes ("editor", "staff writer")
 *   **Published date display**: Shows article publication dates from Exa.ai search results on URL cards for verification of date constraints.
+*   **Site-Specific Extractors**: Employs a modular system (`lib/extractors/`) to handle content extraction for specific websites that require special handling beyond generic HTML scraping. Currently includes extractors for CarAndBike, AutocarIndia, EvoIndia, ZeeBiz, MoneyControl, MSN, and **CarDekho**.
+*   **Author and Publication Date Extraction**: Employs multiple strategies to identify article authors and publication dates:
+    *   Meta tags (`<meta name="author">`, `<meta property="article:author">`, `<meta property="article:published_time">`, etc.)
+    *   JSON-LD structured data parsing for modern websites
+    *   CSS selectors (`.author`, `.byline`, `[itemprop="author"]`, `time[datetime]`, etc.) with text cleanup
+    *   Intelligent filtering to remove prefixes ("by", "written by") and suffixes ("editor", "staff writer")
 *   Styled with `tailwindcss` and uses `lucide-react` for icons.
 *   Features a copyright notice in the footer.
 
@@ -50,12 +60,12 @@ The application consists of a frontend, several backend API endpoints, and an au
     *   Returns relevant URLs with titles, published dates from search index
     *   Handles rate limiting and quota exceeded errors gracefully with user-friendly messages
 *   **`POST /api/fetch-content`**:
-    *   Fetches the HTML content of a given URL using `axios`.
-    *   Uses `cheerio` to parse the HTML and extract the main text content, article headline, and author information.
-    *   **Author extraction**: Employs multiple strategies to identify article authors:
-        *   Meta tags (`<meta name="author">`, `<meta property="article:author">`)
+    *   Scrapes content from URLs with global shared caching, bot detection handling, author, and publication date extraction.
+    *   **Site-Specific Extractors**: Employs a modular system (`lib/extractors/`) to handle content extraction for specific websites that require special handling beyond generic HTML scraping. Currently includes extractors for CarAndBike, AutocarIndia, EvoIndia, ZeeBiz, MoneyControl, MSN, and **CarDekho**.
+    *   **Author and Publication Date Extraction Strategies**:
+        *   Meta tags (`<meta name="author">`, `<meta property="article:author">`, `<meta property="article:published_time">`, etc.)
         *   JSON-LD structured data parsing for modern websites
-        *   CSS selectors (`.author`, `.byline`, `[itemprop="author"]`) with text cleanup
+        *   CSS selectors (`.author`, `.byline`, `[itemprop="author"]`, `time[datetime]`, etc.) with text cleanup
         *   Intelligent filtering to remove prefixes ("by", "written by") and suffixes ("editor", "staff writer")
     *   Includes a retry mechanism with exponential backoff.
     *   **Global shared caching**: Implements intelligent in-memory caching shared across all users with content hash validation.
