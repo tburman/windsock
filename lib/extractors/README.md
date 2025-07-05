@@ -143,6 +143,11 @@ curl -X POST http://localhost:3000/api/fetch-content \
   - Supports all sections: auto-features, advice, car-news, car-reviews, bike-reviews
   - Dynamic AMP discovery via `<link rel="amphtml">` tags
   - Comprehensive fallback extraction for non-AMP pages
+- **EvoIndia.com**: JSON-LD prioritized extraction with comprehensive fallback strategies
+  - Primary extraction from rich JSON-LD structured data (Article/NewsArticle schema)
+  - AMP version discovery and extraction when available
+  - DOM-based extraction with EvoIndia-specific selectors
+  - Supports all content sections: opinion, reviews, features, news
 
 ## Debugging
 
