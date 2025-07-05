@@ -174,13 +174,19 @@ async function fetchWithRetry(url, maxRetries = 3) {
 // Import the extractor registry
 import { extractorRegistry } from '../../lib/extractors/registry.js'
 
-async function extractContent(html, url) {
+async function extractContentWithMetadata(html, url) {
   // First, try site-specific extractors
   try {
     const extractorResult = await extractorRegistry.extractContent(html, url)
     if (extractorResult && extractorResult.content) {
       console.log(`🎯 Site-specific extraction successful: ${extractorResult.content.length} characters`)
-      return extractorResult.content
+      return {
+        content: extractorResult.content,
+        title: extractorResult.title || null,
+        author: extractorResult.author || null,
+        publishedDate: extractorResult.publishedDate || null,
+        extractionMethod: 'site-specific'
+      }
     }
   } catch (error) {
     console.log(`⚠️  Site-specific extraction failed: ${error.message}`)
@@ -188,7 +194,14 @@ async function extractContent(html, url) {
 
   // Fall back to generic extraction
   console.log('🔄 Falling back to generic content extraction')
-  return extractContentGeneric(html, url)
+  const content = extractContentGeneric(html, url)
+  return {
+    content: content,
+    title: extractTitle(html),
+    author: extractAuthor(html),
+    publishedDate: null, // Generic extraction doesn't support date extraction
+    extractionMethod: 'generic'
+  }
 }
 
 function extractContentGeneric(html, url) {
@@ -499,6 +512,8 @@ async function processSingleUrl(url) {
       content: cachedEntry.content, 
       articleTitle: cachedEntry.articleTitle,
       author: cachedEntry.author,
+      publishedDate: cachedEntry.publishedDate || null,
+      extractionMethod: cachedEntry.extractionMethod || 'legacy',
       status: 'success',
       cached: true,
       cacheAge: cacheAge,
@@ -510,13 +525,13 @@ async function processSingleUrl(url) {
     console.log(`💾 Cache MISS - fetching content from: ${url}`)
     
     const html = await fetchWithRetry(url)
-    const content = await extractContent(html, url)
-    const articleTitle = extractTitle(html)
-    const author = extractAuthor(html)
+    const extractionResult = await extractContentWithMetadata(html, url)
     
-    if (!content || content.length < 100) {
+    if (!extractionResult.content || extractionResult.content.length < 100) {
       throw new Error('Insufficient content extracted')
     }
+    
+    const { content, title, author, publishedDate, extractionMethod } = extractionResult
     
     // Generate content hash and determine TTL
     const contentHash = generateContentHash(content)
@@ -533,8 +548,10 @@ async function processSingleUrl(url) {
     // Cache the successful result
     globalCache.set(url, {
       content,
-      articleTitle,
+      articleTitle: title,
       author,
+      publishedDate,
+      extractionMethod,
       contentHash,
       timestamp: now,
       lastAccessed: now,
@@ -543,13 +560,15 @@ async function processSingleUrl(url) {
       fetchCount: (cachedEntry?.fetchCount || 0) + 1
     })
     
-    console.log(`✅ Cached ${url} (${content.length} chars, TTL: ${ttlHours}h, hash: ${contentHash.substring(0, 8)})`)
+    console.log(`✅ Cached ${url} (${content.length} chars, TTL: ${ttlHours}h, method: ${extractionMethod}, hash: ${contentHash.substring(0, 8)})`)
     
     return { 
       url,
       content, 
-      articleTitle,
+      articleTitle: title,
       author, 
+      publishedDate,
+      extractionMethod,
       status: 'success',
       cached: false, 
       contentHash,
@@ -586,6 +605,7 @@ async function processSingleUrl(url) {
       content: '', 
       articleTitle: '',
       author: null,
+      publishedDate: null,
       status: 'error', 
       error: errorMessage,
       errorType: errorType
@@ -640,6 +660,7 @@ export default async function handler(req, res) {
             content: '',
             articleTitle: '',
             author: null,
+            publishedDate: null,
             status: 'error',
             error: `Unexpected error: ${result.reason?.message || 'Unknown error'}`,
             errorType: 'general'

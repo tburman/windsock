@@ -9,7 +9,8 @@ A Next.js web application that analyzes sentiment across multiple URLs to show y
 - 🔍 **Smart Search**: Use Exa.ai to discover relevant URLs with natural language queries and intelligent date constraints
 - 📅 **Advanced Date Parsing**: Understands "today", "this week", "june and july 2025", and specific date formats
 - 👤 **Author Extraction**: Automatically identifies and displays article authors using multiple detection strategies
-- 📰 **Publication Dates**: Shows article publication dates from search results for verification
+- 📰 **Publication Dates**: Shows article publication dates from search results and extracted content for verification
+- 🎯 **Site-Specific Extractors**: Specialized content extraction for major automotive and financial sites with enhanced metadata
 - 🤖 **AI-Powered Analysis**: Uses Google's Gemini Flash Lite via OpenRouter for fast, accurate sentiment analysis
 - 📊 **Comprehensive Reporting**: Get overall sentiment trends, key themes, and "wind direction" insights
 - ⚡ **Smart Caching**: Global shared cache with content hash validation for optimal performance
@@ -67,7 +68,8 @@ For 100 URLs using Gemini Flash Lite:
 ## API Endpoints
 
 - `POST /api/search-exa` - **NEW**: Semantic search using Exa.ai with intelligent date parsing and configurable result limits
-- `POST /api/fetch-content` - Scrapes content from URLs with global shared caching, bot detection handling, and author extraction  
+- `POST /api/fetch-content` - Scrapes content from URLs with site-specific extractors, global shared caching, bot detection handling, and comprehensive metadata extraction (author, published date)
+- `POST /api/fetch-content-batch` - Batch processing for multiple URLs with the same advanced extraction capabilities  
 - `POST /api/analyze-sentiment` - Analyzes sentiment using OpenRouter
 - `POST /api/generate-report` - Creates comprehensive summary report
 - `POST /api/generate-headline` - Generates dynamic report headlines
@@ -80,7 +82,8 @@ For 100 URLs using Gemini Flash Lite:
 - **Frontend**: Next.js 15, React, Tailwind CSS
 - **Backend**: Next.js API routes with global shared caching
 - **Content Discovery**: Exa.ai semantic search with date constraint detection
-- **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion
+- **Web Scraping**: Axios + Cheerio with enhanced bot detection evasion and site-specific extractors
+- **Content Extraction**: Modular extractor system for automotive sites (CarDekho, CarAndBike, AutocarIndia, EvoIndia) and financial sites (ZeeBiz, MoneyControl, MSN)
 - **AI**: OpenRouter API + Google Gemini models (Flash Lite & Flash 1.5)
 - **Authentication**: Cookie-based sessions with middleware protection
 - **Deployment**: Vercel
@@ -134,6 +137,8 @@ Open [http://localhost:3000](http://localhost:3000) to see the application.
 - **Retry logic**: Exponential backoff for transient failures
 - **Multiple redirects**: Handles complex redirect chains
 - **Content parsing**: Semantic HTML parsing for better text extraction
+- **Site-specific extractors**: Specialized handling for major automotive and financial sites
+- **Published date extraction**: Comprehensive date parsing from multiple sources (JSON-LD, meta tags, HTML elements)
 
 ### Enhanced User Experience
 - **Instant Button Feedback**: All buttons provide immediate tactile feedback with click animations and scale effects
