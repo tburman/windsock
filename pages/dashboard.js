@@ -4,6 +4,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/router'
 import { LogOut, Globe, AlertCircle, CheckCircle, Clock, BarChart3, TrendingUp, TrendingDown, FileText, Link2, Zap, Wind, BrainCircuit, ChevronDown, ChevronUp, Copy, Trash2, RotateCcw, Search, Toggle, User } from 'lucide-react'
+import CommunityAnalytics from '../components/CommunityAnalytics'
 
 // Skeleton Loader Components
 const Skeleton = ({ className }) => <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [openResult, setOpenResult] = useState(null)
   const [copiedMessage, setCopiedMessage] = useState('')
   const [isReportUpdating, setIsReportUpdating] = useState(false)
+  const [showAnalytics, setShowAnalytics] = useState(false)
   const router = useRouter()
 
   const extractUrls = (text) => {
@@ -647,13 +649,22 @@ export default function Dashboard() {
                 <p className="text-gray-600 text-sm sm:text-base mt-1">See which way the wind is blowing for any URL.</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 active:bg-red-700 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowAnalytics(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 active:bg-blue-700 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Analytics</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 active:bg-red-700 active:scale-95 transition-all duration-150 shadow-sm active:shadow-xs"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
           
           <div className="mb-6">
@@ -1141,6 +1152,12 @@ Check out this article: https://example.com/news/article-one. It's great."
           </div>
         )}
       </main>
+
+      {/* Community Analytics Modal */}
+      <CommunityAnalytics 
+        isOpen={showAnalytics} 
+        onClose={() => setShowAnalytics(false)} 
+      />
 
       <footer className="w-full text-center mt-12 py-4 text-gray-500 text-sm">
         &copy; {new Date().getFullYear()} Tushar Burman. All rights reserved.
