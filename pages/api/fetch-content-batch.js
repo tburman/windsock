@@ -1,4 +1,4 @@
-// ===== pages/api/fetch-content.js =====
+// ===== pages/api/fetch-content-batch.js =====
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { Agent } from 'https'
@@ -23,7 +23,7 @@ const httpAgent = new HttpAgent({
   keepAlive: true
 })
 
-// Enhanced global cache configuration
+// Enhanced global cache configuration (shared with single endpoint)
 const globalCache = new Map()
 const MAX_CACHE_SIZE = 2500 // Maximum number of cached entries (~125MB at 50KB avg)
 const DEFAULT_CACHE_TTL = 6 * 60 * 60 * 1000 // 6 hours default
@@ -153,31 +153,10 @@ async function fetchWithRetry(url, maxRetries = 3) {
       return response.data
     } catch (error) {
       console.log(`Attempt ${i + 1} failed for ${url}:`, error.message)
-      console.log(`Error code: ${error.code}`)
-      console.log(`Error type: ${error.constructor.name}`)
-      
-      if (error.response) {
-        console.log(`Status: ${error.response.status}`)
-        console.log(`Status text: ${error.response.statusText}`)
-        console.log(`Response headers: ${JSON.stringify(error.response.headers, null, 2)}`)
-        if (error.response.data && typeof error.response.data === 'string' && error.response.data.length < 1000) {
-          console.log(`Response data: ${error.response.data}`)
-        }
-      } else if (error.request) {
-        console.log('No response received')
-        console.log(`Request headers: ${JSON.stringify(error.request.getHeaders?.() || 'N/A')}`)
-      } else {
-        console.log('Error details:', {
-          message: error.message,
-          stack: error.stack?.split('\n').slice(0, 5).join('\n'),
-          code: error.code
-        })
-      }
       
       // Special handling for potential bot detection
       if (error.message.includes('Parse Error') || error.message.includes('Header overflow')) {
         console.log('⚠️  Confirmed: Bot detection via malformed headers from:', url)
-        console.log('Yahoo Finance and similar sites use this anti-scraping technique')
         
         // For the final attempt, suggest alternative approach
         if (i === maxRetries - 1) {
@@ -499,23 +478,12 @@ function extractAuthor(html) {
   return author || null;
 }
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
-  }
-  
-  const { url } = req.body
-  
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' })
-  }
-  
-  // Periodic cache cleanup
-  maybeCleanupCache()
+// Process a single URL (extracted from original endpoint)
+async function processSingleUrl(url) {
+  const now = Date.now()
   
   // Check if we have this URL cached
   const cachedEntry = globalCache.get(url)
-  const now = Date.now()
   
   if (cachedEntry && (now - cachedEntry.timestamp) < cachedEntry.ttl) {
     // Update last accessed time for LRU
@@ -526,14 +494,16 @@ export default async function handler(req, res) {
     const ttlHours = Math.round(cachedEntry.ttl / 1000 / 60 / 60)
     console.log(`🚀 Cache HIT for ${url} (age: ${cacheAge}m, TTL: ${ttlHours}h, hits: ${cachedEntry.hitCount})`)
     
-    return res.status(200).json({ 
+    return { 
+      url,
       content: cachedEntry.content, 
       articleTitle: cachedEntry.articleTitle,
       author: cachedEntry.author,
+      status: 'success',
       cached: true,
       cacheAge: cacheAge,
       contentHash: cachedEntry.contentHash
-    })
+    }
   }
   
   try {
@@ -574,21 +544,142 @@ export default async function handler(req, res) {
     })
     
     console.log(`✅ Cached ${url} (${content.length} chars, TTL: ${ttlHours}h, hash: ${contentHash.substring(0, 8)})`)
-    console.log(`📊 Cache stats: ${globalCache.size}/${MAX_CACHE_SIZE} entries`)
     
-    res.status(200).json({ 
+    return { 
+      url,
       content, 
       articleTitle,
       author, 
+      status: 'success',
       cached: false, 
       contentHash,
       contentChanged: cachedEntry ? contentChanged : undefined
-    })
+    }
   } catch (error) {
     console.error(`❌ Failed to fetch ${url}:`, error.message)
+    
+    // Classify error types for better user messaging
+    let errorMessage = error.message
+    let errorType = 'general'
+    
+    if (error.message.includes('blocking automated access') || 
+        error.message.includes('anti-bot protection') ||
+        error.message.includes('Parse Error: Header overflow')) {
+      errorType = 'bot-detection'
+      errorMessage = 'Site blocked automated access (anti-bot protection)'
+    } else if (error.message.includes('timeout') || error.message.includes('ECONNRESET')) {
+      errorType = 'network'
+      errorMessage = 'Network timeout or connection issue'
+    } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+      errorType = 'not-found'
+      errorMessage = 'Page not found (404)'
+    } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+      errorType = 'forbidden'
+      errorMessage = 'Access forbidden (403)'
+    } else if (error.message.includes('Insufficient content')) {
+      errorType = 'content'
+      errorMessage = 'Unable to extract meaningful content from page'
+    }
+    
+    return { 
+      url, 
+      content: '', 
+      articleTitle: '',
+      author: null,
+      status: 'error', 
+      error: errorMessage,
+      errorType: errorType
+    }
+  }
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+  
+  const { urls, concurrency = 5 } = req.body
+  
+  if (!urls || !Array.isArray(urls)) {
+    return res.status(400).json({ error: 'URLs array is required' })
+  }
+  
+  if (urls.length === 0) {
+    return res.status(400).json({ error: 'At least one URL is required' })
+  }
+  
+  // Validate concurrency parameter
+  const maxConcurrency = 10 // Reasonable upper limit
+  const actualConcurrency = Math.min(Math.max(1, concurrency), maxConcurrency)
+  
+  console.log(`🔄 Processing ${urls.length} URLs with concurrency: ${actualConcurrency}`)
+  
+  // Periodic cache cleanup
+  maybeCleanupCache()
+  
+  try {
+    const results = []
+    
+    // Process URLs in batches to control concurrency
+    for (let i = 0; i < urls.length; i += actualConcurrency) {
+      const batch = urls.slice(i, i + actualConcurrency)
+      console.log(`📦 Processing batch ${Math.floor(i / actualConcurrency) + 1}: URLs ${i + 1}-${Math.min(i + actualConcurrency, urls.length)}`)
+      
+      const batchPromises = batch.map(url => processSingleUrl(url))
+      const batchResults = await Promise.allSettled(batchPromises)
+      
+      // Extract results from Promise.allSettled
+      const processedResults = batchResults.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        } else {
+          // Handle unexpected promise rejection
+          console.error(`Unexpected error processing URL ${batch[index]}:`, result.reason)
+          return {
+            url: batch[index],
+            content: '',
+            articleTitle: '',
+            author: null,
+            status: 'error',
+            error: `Unexpected error: ${result.reason?.message || 'Unknown error'}`,
+            errorType: 'general'
+          }
+        }
+      })
+      
+      results.push(...processedResults)
+      
+      // Small delay between batches to be respectful
+      if (i + actualConcurrency < urls.length) {
+        await delay(100)
+      }
+    }
+    
+    // Calculate statistics
+    const successful = results.filter(r => r.status === 'success').length
+    const failed = results.filter(r => r.status === 'error').length
+    const cached = results.filter(r => r.cached).length
+    
+    console.log(`📊 Batch processing complete: ${successful} successful, ${failed} failed, ${cached} from cache`)
+    console.log(`📊 Cache stats: ${globalCache.size}/${MAX_CACHE_SIZE} entries`)
+    
+    res.status(200).json({
+      results,
+      stats: {
+        total: urls.length,
+        successful,
+        failed,
+        cached,
+        concurrency: actualConcurrency
+      }
+    })
+    
+  } catch (error) {
+    console.error('❌ Batch processing failed:', error)
     res.status(500).json({ 
-      error: `Failed to fetch content: ${error.message}`,
-      url 
+      error: `Batch processing failed: ${error.message}`,
+      processed: 0,
+      total: urls.length
     })
   }
 }
