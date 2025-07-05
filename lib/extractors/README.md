@@ -153,6 +153,12 @@ curl -X POST http://localhost:3000/api/fetch-content \
   - ZeeBiz-specific selectors (`.article-para`, `.articleheading`, `.writer-name`)
   - Advanced noise filtering to exclude ads and navigation elements
   - Supports all ZeeBiz content sections with high reliability
+- **MoneyControl.com**: JSON-LD prioritized extraction with MoneyControl-specific author parsing
+  - Primary extraction from JSON-LD NewsArticle structured data with control character cleaning
+  - Handles Windows-style CRLF line endings and malformed JSON formatting
+  - MoneyControl-specific DOM selectors (`.article_body`, `.content_wrapper`, `.author-name`)
+  - Comprehensive author extraction from multiple JSON-LD patterns and DOM elements
+  - Supports business news, company analysis, and financial content sections
 
 ## Debugging
 
