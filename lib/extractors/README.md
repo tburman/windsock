@@ -148,6 +148,11 @@ curl -X POST http://localhost:3000/api/fetch-content \
   - AMP version discovery and extraction when available
   - DOM-based extraction with EvoIndia-specific selectors
   - Supports all content sections: opinion, reviews, features, news
+- **ZeeBiz.com**: JSON-LD prioritized extraction with ZeeBiz-specific DOM fallbacks
+  - Primary extraction from excellent JSON-LD NewsArticle structured data
+  - ZeeBiz-specific selectors (`.article-para`, `.articleheading`, `.writer-name`)
+  - Advanced noise filtering to exclude ads and navigation elements
+  - Supports all ZeeBiz content sections with high reliability
 
 ## Debugging
 
